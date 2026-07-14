@@ -1,0 +1,91 @@
+// ConnectionService의 CRUD 외 확장. 이 파일의 내용은 proto-merge에 의해
+// 생성된 connection_svc.g.proto에 병합된다.
+
+// InterfaceRef로 활성 연결을 필터링하기 위해 가져온다.
+import "wifi/interface_svc.g.proto";
+
+service ConnectionService {
+  // List는 현재 활성화된 연결들을 열거한다.
+  rpc List(ConnectionListRequest) returns (ConnectionListResponse);
+  // Watch는 연결이 끝 상태(CONNECTED 또는 FAILED)에 도달할 때까지 상태
+  // 변화를 스트리밍한다. "비번을 넣고 연결되길 기다리는" 흐름의 핵심으로,
+  // 인증 실패(잘못된 비밀번호) 같은 결과도 이 스트림으로 알 수 있다.
+  rpc Watch(ConnectionRef) returns (stream ConnectionStatus);
+  // GetStatus는 연결의 현재 상태를 한 번 조회한다(스냅샷).
+  rpc GetStatus(ConnectionRef) returns (ConnectionStatus);
+}
+
+message ConnectionListRequest {
+  // 지정하면 해당 인터페이스의 연결만 돌려준다(선택).
+  InterfaceRef interface = 1;
+}
+
+message ConnectionListResponse {
+  // 활성 연결 목록.
+  repeated Connection items = 1;
+}
+
+// ConnectionState는 활성 연결의 진행 상태를 나타낸다.
+enum ConnectionState {
+  CONNECTION_STATE_UNSPECIFIED = 0;
+
+  // 아직 시작 전.
+  CONNECTION_STATE_IDLE = 1;
+  // AP에 결합 중(BSS 선택/association).
+  CONNECTION_STATE_ASSOCIATING = 2;
+  // 보안 핸드셰이크 수행 중(예: WPA 4-way handshake).
+  CONNECTION_STATE_AUTHENTICATING = 3;
+  // IP 설정을 받는 중(DHCP/SLAAC).
+  CONNECTION_STATE_CONFIGURING = 4;
+  // 완전히 연결되어 사용 가능(성공 끝 상태).
+  CONNECTION_STATE_CONNECTED = 5;
+  // 연결 실패(끝 상태). 원인은 error 참고.
+  CONNECTION_STATE_FAILED = 6;
+  // 해제되는 중.
+  CONNECTION_STATE_DISCONNECTING = 7;
+}
+
+// ConnectionError는 연결이 실패한 원인을 설명한다.
+enum ConnectionError {
+  CONNECTION_ERROR_UNSPECIFIED = 0;
+
+  // 오류 없음.
+  CONNECTION_ERROR_NONE = 1;
+  // 인증 실패(잘못된 비밀번호/자격 증명 거부).
+  CONNECTION_ERROR_AUTH_FAILED = 2;
+  // 대상 SSID를 찾지 못함.
+  CONNECTION_ERROR_NETWORK_NOT_FOUND = 3;
+  // 결합/핸드셰이크 시간 초과.
+  CONNECTION_ERROR_ASSOC_TIMEOUT = 4;
+  // IP 설정(DHCP 등) 실패.
+  CONNECTION_ERROR_IP_CONFIG_FAILED = 5;
+  // AP에 의해 끊김 / 신호 상실.
+  CONNECTION_ERROR_DISCONNECTED = 6;
+  // 알 수 없는 오류.
+  CONNECTION_ERROR_UNKNOWN = 7;
+}
+
+// ConnectionStatus는 활성 연결의 실시간 상태 스냅샷이다.
+//
+// 연결이 유지되는 동안 계속 변하므로 Connection 엔티티에 저장하지 않고
+// Watch/GetStatus를 통해 별도로 전달한다.
+message ConnectionStatus {
+  // 현재 진행 상태.
+  ConnectionState state = 1;
+  // state == FAILED 일 때 설정되는 실패 원인.
+  ConnectionError error = 2;
+  // 현재 상태/오류에 대한 사람이 읽을 수 있는 부가 설명(선택).
+  string detail = 3;
+
+  // 현재 결합된 AP의 BSSID. 로밍 시 바뀔 수 있다.
+  string bssid = 4;
+  // 현재 신호 품질(0-100). 클수록 강하다(NetworkManager Strength와 동일 척도).
+  int32 signal = 5;
+
+  // 연결 후 실제로 할당된 주소들(CIDR 표기).
+  repeated string addresses = 6;
+  // 실제 적용된 기본 게이트웨이.
+  string gateway = 7;
+  // 실제 적용된 DNS 서버들.
+  repeated string dns = 8;
+}

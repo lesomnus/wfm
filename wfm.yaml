@@ -1,4 +1,2 @@
-# Greeting configuration (used by the `greet` subcommand).
-greet:
-  # Format string; %s is replaced with the name argument.
-  format: "Hello, %s!"
+# wfm configuration.
+# See the `otel` section for OpenTelemetry export settings.

@@ -1,0 +1,23 @@
+// InterfaceService의 CRUD 외 확장. 이 파일의 내용은 proto-merge에 의해
+// 생성된 interface_svc.g.proto에 병합된다.
+
+service InterfaceService {
+  // List는 노드의 모든 무선 인터페이스를 열거한다.
+  rpc List(InterfaceListRequest) returns (InterfaceListResponse);
+  // SetPower는 인터페이스의 라디오 전원을 켜거나 끈다.
+  rpc SetPower(InterfaceSetPowerRequest) returns (Interface);
+}
+
+message InterfaceListRequest {}
+
+message InterfaceListResponse {
+  // 인터페이스 목록.
+  repeated Interface items = 1;
+}
+
+message InterfaceSetPowerRequest {
+  // 전원을 제어할 인터페이스.
+  InterfaceRef ref = 1;
+  // true면 라디오를 켜고, false면 끈다.
+  bool on = 2;
+}

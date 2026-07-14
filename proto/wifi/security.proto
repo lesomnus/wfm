@@ -1,0 +1,39 @@
+edition = "2023";
+
+package wifi;
+
+option go_package = "github.com/lesomnus/wfm/internal/wifi";
+
+// Security는 네트워크에 인증하는 방법을 기술한다.
+//
+// 지금은 비밀번호(PSK)만 지원하지만, AP 연결에는 그 외의 방식도 있으므로
+// 향후(802.1X/EAP, WPS 등) 추가될 수 있도록 자격 증명을 oneof로 정의했다.
+// 새로운 방식은 기존 프로파일을 깨뜨리지 않고 oneof에 항목을 더하면 된다.
+//
+// 이 메세지는 ORM 엔티티가 아니라 Profile에 내장되는(JSON으로 저장되는)
+// 값 객체다. AP가 광고하는 인증 방식 enum은 AccessPoint와 함께 두었다
+// (access_point.proto의 KeyManagement 참고).
+message Security {
+  // 사용할 자격 증명. 정확히 하나만 설정된다.
+  oneof credential {
+    // 개방형 / OWE 처럼 자격 증명이 필요 없는 경우.
+    Open open = 1;
+    // 사전 공유 키(비밀번호). WPA-PSK와 WPA3-SAE를 모두 포괄한다.
+    Psk psk = 2;
+    // 802.1X/EAP enterprise 자격 증명. 향후 구현을 위한 자리.
+    Enterprise enterprise = 3;
+  }
+
+  // 자격 증명이 필요 없는 네트워크를 의미한다.
+  message Open {}
+
+  // 사용자가 입력하는 "비밀번호"에 해당한다.
+  message Psk {
+    // 패스프레이즈(사전 공유 키).
+    string passphrase = 1;
+  }
+
+  // 802.1X/EAP 기반 인증을 위한 자리표시자.
+  // EAP 방식, identity, 인증서 등은 실제 구현 시점에 추가된다.
+  message Enterprise {}
+}

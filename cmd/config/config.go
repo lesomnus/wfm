@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+	"io"
 	"os"
 
 	"github.com/goccy/go-yaml"
@@ -15,8 +17,6 @@ var DefaultConfigPaths = []string{
 type Config struct {
 	path string
 
-	Greet GreetConfig
-
 	Otel OtelConfig
 }
 
@@ -27,7 +27,8 @@ func ReadFromFile(p string) (*Config, error) {
 	}
 
 	var c Config
-	if err := yaml.NewDecoder(f).Decode(&c); err != nil {
+	// An empty or comment-only file is a valid (empty) config.
+	if err := yaml.NewDecoder(f).Decode(&c); err != nil && !errors.Is(err, io.EOF) {
 		return nil, z.Err(err, "decode")
 	}
 
@@ -40,6 +41,5 @@ func (c *Config) Path() string {
 }
 
 func (c *Config) Evaluate() error {
-	z.FallbackP(&c.Greet.Format, "Hello, %s!")
 	return nil
 }

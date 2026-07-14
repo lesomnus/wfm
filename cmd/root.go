@@ -15,12 +15,20 @@ func NewCmdRoot() *xli.Command {
 
 		Flags: flg.Flags{
 			&flg.String{Name: "config", Brief: "path to config file"},
+			&flg.String{Name: "server", Brief: "gRPC server address", Value: ptr(defaultServer)},
 		},
 
 		Commands: []*xli.Command{
 			NewCmdVersion(),
 			NewCmdConfig(),
-			NewCmdGreet(),
+
+			NewCmdInterface(),
+			NewCmdScan(),
+			NewCmdProfile(),
+			NewCmdConnect(),
+			NewCmdConnection(),
+
+			NewCmdServe(),
 		},
 
 		Handler: xli.Chain(

@@ -1,0 +1,78 @@
+edition = "2023";
+
+package wifi;
+
+import "google/protobuf/timestamp.proto";
+import "orm.proto";
+import "wifi/security.proto";
+
+option go_package = "github.com/lesomnus/wfm/internal/wifi";
+
+// IpConfig는 한 주소 체계(IPv4 또는 IPv6)의 주소 할당 방식을 기술한다.
+// Profile에 내장되는(JSON으로 저장되는) 값 객체다.
+message IpConfig {
+  // 자동/수동 할당을 선택한다.
+  enum Method {
+    METHOD_UNSPECIFIED = 0;
+    // 자동: IPv4는 DHCP, IPv6는 SLAAC/DHCPv6로 할당받는다.
+    METHOD_AUTO = 1;
+    // 수동: 아래 필드들로 정적 설정한다.
+    METHOD_MANUAL = 2;
+    // 이 주소 체계를 구성하지 않는다.
+    METHOD_DISABLED = 3;
+  }
+  Method method = 1;
+
+  // 아래 필드들은 method == METHOD_MANUAL 일 때만 사용된다.
+
+  // CIDR 표기의 주소 목록. 예: "192.168.1.10/24".
+  repeated string addresses = 2;
+  // 기본 게이트웨이. 예: "192.168.1.1".
+  string gateway = 3;
+  // DNS 서버 주소 목록. 예: "1.1.1.1".
+  repeated string dns = 4;
+  // DNS 검색 도메인 목록.
+  repeated string dns_search = 5;
+}
+
+// Profile은 과거에 연결했던(또는 앞으로 연결할) 설정을 저장하는 기록이다.
+//
+// 대상 네트워크(SSID), 인증 방법(Security), IP/DNS 설정을 담는다.
+// 실제 연결은 이 Profile을 특정 Interface에 적용하여 Connection으로
+// 활성화함으로써 이루어진다. 사용자가 직접 만들고 관리하는 대상이므로
+// 전체 CRUD를 제공한다.
+message Profile {
+  // 프로파일 식별자(자동 생성 UUID).
+  bytes id = 1 [(orm.field) = {
+    type: TYPE_UUID
+    key: true
+    default: ""
+  }];
+  // 사람이 읽기 위한 이름. 예: "집 와이파이".
+  string name = 5 [(orm.field) = {default: ""}];
+  // 설명.
+  string desc = 6 [(orm.field) = {default: ""}];
+
+  // 연결 대상 네트워크 이름(SSID). 필수 값이다.
+  string ssid = 7;
+  // SSID가 숨겨진(브로드캐스트되지 않는) 네트워크인지 여부.
+  // 숨김 네트워크는 스캔에 보이지 않으므로 SSID를 직접 지정해 연결한다.
+  bool hidden = 8 [(orm.field) = {default: ""}];
+  // 네트워크가 범위 안에 들어오면 자동으로 연결할지 여부.
+  bool autoconnect = 9 [(orm.field) = {default: ""}];
+
+  // 이 네트워크에 인증하는 방법. 개방형이면 Security.open을 사용한다.
+  Security security = 10;
+  // IPv4 주소 설정. 지정하지 않으면 자동(DHCP)으로 동작한다.
+  IpConfig ipv4 = 11 [(orm.field) = {nullable: true}];
+  // IPv6 주소 설정. 지정하지 않으면 자동으로 동작한다.
+  IpConfig ipv6 = 12 [(orm.field) = {nullable: true}];
+
+  // 프로파일이 처음 생성된 시각.
+  google.protobuf.Timestamp date_created = 15 [(orm.field) = {
+    immutable: true
+    default: ""
+  }];
+
+  option (orm.message) = {rpc: {crud: true}};
+}
