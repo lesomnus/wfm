@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -103,6 +104,110 @@ func TestSelectionPreservedAcrossRescan(t *testing.T) {
 
 	if got := tm.(model).selectedAP().GetId(); got != selID {
 		t.Errorf("selection after rescan = %q, want %q", got, selID)
+	}
+}
+
+func TestPickAddr(t *testing.T) {
+	cases := []struct {
+		in   []string
+		want string
+	}{
+		{nil, ""},
+		{[]string{"10.0.0.5/24"}, "10.0.0.5"},
+		{[]string{"fe80::1/64", "10.0.0.5/24"}, "10.0.0.5"}, // prefer IPv4
+		{[]string{"fe80::1/64"}, "fe80::1"},                 // fall back to first
+	}
+	for _, c := range cases {
+		if got := pickAddr(c.in); got != c.want {
+			t.Errorf("pickAddr(%v) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+// TestIfaceStatusInHeader checks the resolved IP appears in the header, and that
+// a status for a non-selected interface is ignored.
+func TestIfaceStatusInHeader(t *testing.T) {
+	it := &wifi.Interface{}
+	it.SetId("wlan0")
+	it.SetMac("3C:9C:0F:AB:CD:12")
+
+	var m tea.Model = model{}
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 90, Height: 24})
+	m, _ = m.Update(interfacesLoadedMsg{items: []*wifi.Interface{it}})
+
+	m, _ = m.Update(ifaceStatusMsg{ifID: "wlan1", addr: "10.0.0.9"}) // wrong iface
+	if mm := m.(model); mm.ifAddr != "" {
+		t.Fatalf("status for non-selected interface applied: %q", mm.ifAddr)
+	}
+
+	m, _ = m.Update(ifaceStatusMsg{ifID: "wlan0", addr: "192.168.0.42"})
+	out := m.View()
+	for _, want := range []string{"3C:9C:0F:AB:CD:12", "•", "192.168.0.42"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("header missing %q\n%s", want, out)
+		}
+	}
+}
+
+func TestSignalColorBuckets(t *testing.T) {
+	cases := map[int32]int{0: 0, 5: 0, 19: 1, 55: 5, 64: 6, 99: 9, 100: 9}
+	for sig, bucket := range cases {
+		if got := signalColor(sig); got != signalPalette[bucket] {
+			t.Errorf("signalColor(%d) = %q, want bucket %d (%q)", sig, got, bucket, signalPalette[bucket])
+		}
+	}
+}
+
+// TestConnectionShownDuringScan checks that while a scan is loading the active
+// connection appears immediately, and that the full scan result then replaces it
+// while keeping the cursor on that same AP.
+func TestConnectionShownDuringScan(t *testing.T) {
+	var m tea.Model = model{}
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m, _ = m.Update(interfacesLoadedMsg{items: []*wifi.Interface{iface("wlan0")}})
+	if mm := m.(model); !mm.scanning || len(mm.aps) != 0 {
+		t.Fatalf("precondition: want scanning with empty list, got scanning=%v aps=%d", mm.scanning, len(mm.aps))
+	}
+
+	conn := ap("home", "00:00:00:00:00:02", 60, 5180, wifi.KeyManagement_KEY_MANAGEMENT_WPA_PSK)
+	m, _ = m.Update(ifaceStatusMsg{ifID: "wlan0", addr: "10.0.0.2", ap: conn})
+	mm := m.(model)
+	if len(mm.aps) != 1 || mm.aps[0].GetId() != conn.GetId() {
+		t.Fatalf("connection not shown during scan: aps=%d", len(mm.aps))
+	}
+	if !mm.scanning {
+		t.Error("should still be scanning while showing the connection")
+	}
+
+	// Full scan result arrives and replaces the placeholder, selection preserved.
+	m, _ = m.Update(scanResultMsg{ifID: "wlan0", items: []*wifi.AccessPoint{
+		ap("other", "00:00:00:00:00:01", 90, 2412),
+		conn,
+		ap("weak", "00:00:00:00:00:03", 20, 2412),
+	}})
+	mm = m.(model)
+	if mm.scanning {
+		t.Error("scan should be done")
+	}
+	if got := mm.selectedAP().GetId(); got != conn.GetId() {
+		t.Errorf("selection after scan = %q, want connected AP %q", got, conn.GetId())
+	}
+}
+
+// TestScanResultBeforeStatusNotClobbered checks that a connection status
+// arriving after the scan already populated the list does not shrink it back to
+// the single connected AP.
+func TestScanResultBeforeStatusNotClobbered(t *testing.T) {
+	var m tea.Model = model{}
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m, _ = m.Update(interfacesLoadedMsg{items: []*wifi.Interface{iface("wlan0")}})
+	conn := ap("home", "00:00:00:00:00:02", 60, 5180)
+	m, _ = m.Update(scanResultMsg{ifID: "wlan0", items: []*wifi.AccessPoint{
+		ap("other", "00:00:00:00:00:01", 90, 2412), conn,
+	}})
+	m, _ = m.Update(ifaceStatusMsg{ifID: "wlan0", addr: "10.0.0.2", ap: conn})
+	if mm := m.(model); len(mm.aps) != 2 {
+		t.Errorf("aps after late status = %d, want 2 (list must not be clobbered)", len(mm.aps))
 	}
 }
 

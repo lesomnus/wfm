@@ -31,6 +31,8 @@ type model struct {
 
 	ifaces  []*wifi.Interface
 	ifIndex int
+	ifAddr  string           // IP assigned to the selected interface, if connected
+	connAP  *wifi.AccessPoint // AP the selected interface is connected to, if any
 
 	// aps holds the scan result for the currently selected interface, sorted by
 	// descending signal strength.
@@ -78,6 +80,7 @@ func (m *model) triggerScan(ifID string, clear bool) tea.Cmd {
 		m.aps = nil
 		m.apIndex = 0
 		m.top = 0
+		m.connAP = nil
 	}
 	return tea.Batch(m.scanCmd(ifID), spinnerTickCmd())
 }
@@ -178,7 +181,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ifIndex = 0
 		}
 		if it := m.selectedIface(); it != nil {
-			return m, m.triggerScan(it.GetId(), true)
+			m.ifAddr = ""
+			return m, tea.Batch(m.triggerScan(it.GetId(), true), m.ifaceStatusCmd(it.GetId()))
+		}
+		return m, nil
+
+	case ifaceStatusMsg:
+		// Drop results for an interface that is no longer selected.
+		if it := m.selectedIface(); it == nil || it.GetId() != msg.ifID {
+			return m, nil
+		}
+		m.ifAddr = msg.addr
+		m.connAP = msg.ap
+		// While the scan is still loading, show the active connection right away
+		// instead of an empty list.
+		if msg.ap != nil && m.scanning && len(m.aps) == 0 {
+			m.aps = []*wifi.AccessPoint{msg.ap}
+			m.apIndex = 0
+			m.top = 0
 		}
 		return m, nil
 
@@ -196,6 +216,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if c := m.triggerScan(it.GetId(), false); c != nil {
 				cmds = append(cmds, c)
 			}
+			cmds = append(cmds, m.ifaceStatusCmd(it.GetId()))
 		}
 		return m, tea.Batch(cmds...)
 
@@ -256,7 +277,9 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.ifIndex = (m.ifIndex + 1) % len(m.ifaces)
-		return m, m.triggerScan(m.selectedIface().GetId(), true)
+		m.ifAddr = ""
+		id := m.selectedIface().GetId()
+		return m, tea.Batch(m.triggerScan(id, true), m.ifaceStatusCmd(id))
 
 	case "r":
 		if it := m.selectedIface(); it != nil {

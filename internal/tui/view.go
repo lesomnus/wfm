@@ -14,14 +14,15 @@ var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "�
 
 const idleBullet = "●"
 
-// Access-point table column widths (SSID takes the remaining space).
+// Access-point table column widths (SSID takes the remaining space). The SIGNAL
+// column is exactly wide enough for "NNN gg": a 3-digit strength, a space, and
+// the 2-cell braille gauge.
 const (
 	colChan = 4
 	colSig  = 6
-	colBars = 4
 	colSec  = 8
 	// colFixed is every non-SSID column plus the single-space separators.
-	colFixed = colChan + colSig + colBars + colSec + 4
+	colFixed = colChan + colSig + colSec + 3
 )
 
 var (
@@ -98,14 +99,20 @@ func (m model) leftContent(w, h int) string {
 		indicator = spinnerFrames[m.spinner%len(spinnerFrames)]
 	}
 	name := "(no interface)"
+	left := headerStyle.Render(indicator + " " + name)
 	if it := m.selectedIface(); it != nil {
-		name = it.GetId()
+		left = headerStyle.Render(indicator + " " + it.GetId())
+		// Address items (MAC, IP if the backend ever reports one) shown to the
+		// right of the name, each separated by a bullet.
+		if meta := ifaceMeta(it, m.ifAddr); meta != "" {
+			left += faintStyle.Render("  " + meta)
+		}
 	}
 	counter := ""
 	if n := len(m.ifaces); n > 0 {
 		counter = fmt.Sprintf("%d/%d", m.ifIndex+1, n)
 	}
-	b.WriteString(alignEnds(headerStyle.Render(indicator+" "+name), counter, w))
+	b.WriteString(alignEnds(left, counter, w))
 	b.WriteString("\n")
 	b.WriteString(dividerStyle.Render(strings.Repeat("─", w)))
 	b.WriteString("\n")
@@ -136,7 +143,7 @@ func (m model) apTable(w, rows int) string {
 		ssidW = 4
 	}
 
-	head := colHeadStyle.Render(clip(apLine(ssidW, "SSID", "CHAN", "SIGNAL", "BARS", "SECURITY"), w))
+	head := colHeadStyle.Render(clip(apLine(ssidW, "SSID", "CHAN", "SIGNAL", "SECURITY"), w))
 	lines := []string{head}
 
 	// One line is used by the column header.
@@ -165,14 +172,20 @@ func (m model) apTable(w, rows int) string {
 		if ssid == "" {
 			ssid = "--"
 		}
+		selected := i == m.apIndex
+		sig := fmt.Sprintf("%3d %s", ap.GetSignal(), signalMeter(ap.GetSignal()))
+		// Color the strength + gauge by level. The selected row is left plain so
+		// the selection background stays legible.
+		if !selected {
+			sig = lipgloss.NewStyle().Foreground(signalColor(ap.GetSignal())).Render(sig)
+		}
 		line := apLine(ssidW,
 			ssid,
 			channelStr(ap.GetFrequency()),
-			fmt.Sprintf("%d", ap.GetSignal()),
-			signalMeter(ap.GetSignal()),
+			sig,
 			securityLabel(ap.GetKeyManagement()),
 		)
-		if i == m.apIndex {
+		if selected {
 			lines = append(lines, selectedStyle.Width(w).Render(clip(line, w)))
 		} else {
 			lines = append(lines, clip(line, w))
@@ -181,13 +194,13 @@ func (m model) apTable(w, rows int) string {
 	return strings.Join(lines, "\n")
 }
 
-// apLine lays out one row: SSID (left), CHAN and SIGNAL (right-aligned numbers),
-// BARS, and SECURITY. The same layout renders the column header.
-func apLine(ssidW int, ssid, chn, sig, bars, sec string) string {
+// apLine lays out one row: SSID (left), CHAN (right-aligned), SIGNAL (strength
+// plus braille gauge, preformatted to colSig), and SECURITY. The same layout
+// renders the column header.
+func apLine(ssidW int, ssid, chn, sig, sec string) string {
 	return padRight(ssid, ssidW) + " " +
 		padLeft(chn, colChan) + " " +
-		padLeft(sig, colSig) + " " +
-		padRight(bars, colBars) + " " +
+		padRight(sig, colSig) + " " +
 		padRight(sec, colSec)
 }
 
@@ -208,7 +221,8 @@ func (m model) rightContent(w int) string {
 	b.WriteString("\n\n")
 
 	writeField(&b, "BSSID", ap.GetBssid())
-	writeField(&b, "Signal", fmt.Sprintf("%d  %s", ap.GetSignal(), signalMeter(ap.GetSignal())))
+	sig := fmt.Sprintf("%d  %s", ap.GetSignal(), signalMeter(ap.GetSignal()))
+	writeField(&b, "Signal", lipgloss.NewStyle().Foreground(signalColor(ap.GetSignal())).Render(sig))
 	writeField(&b, "Channel", channelStr(ap.GetFrequency()))
 	writeField(&b, "Frequency", fmt.Sprintf("%d MHz", ap.GetFrequency()))
 	writeField(&b, "Security", kmStr(ap.GetKeyManagement()))
@@ -235,6 +249,19 @@ func (m model) statusBar(w int) string {
 	return clip(faintStyle.Render(help), w)
 }
 
+// ifaceMeta joins an interface's address items — its MAC and, when connected,
+// the assigned IP — with bullet separators, skipping any that are empty.
+func ifaceMeta(it *wifi.Interface, ip string) string {
+	var parts []string
+	if mac := it.GetMac(); mac != "" {
+		parts = append(parts, mac)
+	}
+	if ip != "" {
+		parts = append(parts, ip)
+	}
+	return strings.Join(parts, " • ")
+}
+
 // channelStr converts a channel frequency in MHz to its channel number, or "--"
 // when it falls outside the known 2.4/5/6 GHz plans.
 func channelStr(freq uint32) string {
@@ -259,6 +286,25 @@ func channelStr(freq uint32) string {
 // once the level reaches it, so the gauge grows both taller and wider with
 // strength: ⠀⠀ ⡀⠀ ⣠⠀ ⣠⡆ ⣠⣾ for levels 0–4.
 var signalMeters = [5]string{"⠀⠀", "⡀⠀", "⣠⠀", "⣠⡆", "⣠⣾"}
+
+// signalPalette is a 10-step red→yellow→green gradient indexed by signal/10, so
+// the color tracks strength far more finely than the 5-level braille gauge.
+var signalPalette = [10]lipgloss.Color{
+	"#FF0000", "#FF3800", "#FF7100", "#FFAA00", "#FFE200",
+	"#E2FF00", "#A9FF00", "#71FF00", "#38FF00", "#00FF00",
+}
+
+// signalColor maps a 0–100 signal to its gradient color.
+func signalColor(sig int32) lipgloss.Color {
+	i := sig / 10
+	if i < 0 {
+		i = 0
+	}
+	if i > 9 {
+		i = 9
+	}
+	return signalPalette[i]
+}
 
 // signalMeter maps a 0–100 signal to its braille strength gauge.
 func signalMeter(sig int32) string {
