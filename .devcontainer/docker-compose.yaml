@@ -1,6 +1,8 @@
 services:
   dev:
-    image: ghcr.io/lesomnus/dev-golang:1.26
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: sleep infinity
 
     user: "1000"
@@ -15,7 +17,6 @@ services:
 
       - ..:/workspace
       - ${HOME}/workspaces:/workspaces
-      - ${HOME}/.claude:/home/hypnos/.claude
 
     deploy:
       resources:

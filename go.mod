@@ -1,4 +1,4 @@
-module github.com/lesomnus/go-app
+module github.com/lesomnus/wfm
 
 go 1.26.2
 
