@@ -15,7 +15,7 @@ func NewCmdRoot() *xli.Command {
 
 		Flags: flg.Flags{
 			&flg.String{Name: "config", Brief: "path to config file"},
-			&flg.String{Name: "server", Brief: "gRPC server address", Value: ptr(defaultServer)},
+			&flg.String{Name: "server", Brief: "gRPC server address (default: unix socket, else in-process)"},
 		},
 
 		Commands: []*xli.Command{

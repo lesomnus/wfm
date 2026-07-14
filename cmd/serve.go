@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/lesomnus/otx/log"
@@ -22,15 +24,12 @@ func NewCmdServe() *xli.Command {
 		Brief: "run the wifi gRPC server (backed by NetworkManager or iwd)",
 
 		Flags: flg.Flags{
-			&flg.String{Name: "addr", Brief: "listen address", Value: ptr(":50051")},
+			&flg.String{Name: "addr", Brief: "listen address (unix socket path or host:port; default: unix socket)"},
 			&flg.String{Name: "backend", Brief: "wifi backend: nmcli|nmdbus|iwd (default: autodetect)"},
 		},
 
 		Handler: xli.OnRun(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
-			addr, ok := flg.Get[string](cmd, "addr")
-			if !ok || addr == "" {
-				addr = ":50051"
-			}
+			addr, _ := flg.Get[string](cmd, "addr")
 
 			backendName, _ := flg.Get[string](cmd, "backend")
 			if backendName == "" {
@@ -42,7 +41,7 @@ func NewCmdServe() *xli.Command {
 			}
 			defer b.Close()
 
-			lis, err := net.Listen("tcp", addr)
+			lis, err := listen(addr)
 			if err != nil {
 				return err
 			}
@@ -58,8 +57,36 @@ func NewCmdServe() *xli.Command {
 				s.GracefulStop()
 			}()
 
-			log.From(ctx).Info("listen", slog.String("addr", addr), slog.String("backend", backendName))
+			log.From(ctx).Info("listen", slog.String("addr", lis.Addr().String()), slog.String("backend", backendName))
 			return s.Serve(lis)
 		}),
 	}
+}
+
+// listen opens the server listener. An empty or filesystem-looking addr is
+// served as a unix-domain socket (default: the shared socket path), creating
+// its parent directory and clearing any stale socket file first; anything else
+// is treated as a TCP address.
+func listen(addr string) (net.Listener, error) {
+	if addr == "" {
+		addr = defaultSocketPath()
+	}
+	if isUnixAddr(addr) {
+		sock := strings.TrimPrefix(addr, "unix://")
+		if err := os.MkdirAll(filepath.Dir(sock), 0o700); err != nil {
+			return nil, err
+		}
+		if err := os.Remove(sock); err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
+		return net.Listen("unix", sock)
+	}
+	return net.Listen("tcp", addr)
+}
+
+func isUnixAddr(addr string) bool {
+	return strings.HasPrefix(addr, "unix://") ||
+		strings.HasPrefix(addr, "/") ||
+		strings.HasPrefix(addr, "./") ||
+		strings.HasPrefix(addr, "~")
 }
