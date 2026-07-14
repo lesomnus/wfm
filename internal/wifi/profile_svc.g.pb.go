@@ -1558,7 +1558,7 @@ func (x *ProfileListResponse) SetItems(v []*Profile) {
 type ProfileListResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 프로파일 목록.
+	// List of profiles.
 	Items []*Profile
 }
 

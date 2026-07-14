@@ -1067,8 +1067,8 @@ func (x *AccessPointScanRequest) ClearInterface() {
 type AccessPointScanRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 스캔에 사용할 무선 인터페이스. 노드에 인터페이스가 여러 개일 수 있으므로
-	// 반드시 지정한다.
+	// The wireless interface to scan with. Must be specified since a node may have
+	// multiple interfaces.
 	Interface *InterfaceRef
 }
 
@@ -1128,7 +1128,7 @@ func (x *AccessPointScanResponse) SetItems(v []*AccessPoint) {
 type AccessPointScanResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 발견된 AP 목록.
+	// List of discovered APs.
 	Items []*AccessPoint
 }
 

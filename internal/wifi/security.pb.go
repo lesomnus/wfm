@@ -20,15 +20,16 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Security는 네트워크에 인증하는 방법을 기술한다.
+// Security describes how to authenticate to a network.
 //
-// 지금은 비밀번호(PSK)만 지원하지만, AP 연결에는 그 외의 방식도 있으므로
-// 향후(802.1X/EAP, WPS 등) 추가될 수 있도록 자격 증명을 oneof로 정의했다.
-// 새로운 방식은 기존 프로파일을 깨뜨리지 않고 oneof에 항목을 더하면 된다.
+// For now only a password (PSK) is supported, but since AP connections have
+// other methods too, the credential is defined as a oneof so it can be extended
+// in the future (802.1X/EAP, WPS, etc.). New methods can be added as entries to
+// the oneof without breaking existing profiles.
 //
-// 이 메세지는 ORM 엔티티가 아니라 Profile에 내장되는(JSON으로 저장되는)
-// 값 객체다. AP가 광고하는 인증 방식 enum은 AccessPoint와 함께 두었다
-// (access_point.proto의 KeyManagement 참고).
+// This message is not an ORM entity but a value object embedded in a Profile
+// (stored as JSON). The enum of authentication methods an AP advertises is kept
+// alongside AccessPoint (see KeyManagement in access_point.proto).
 type Security struct {
 	state                 protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Credential isSecurity_Credential  `protobuf_oneof:"credential"`
@@ -189,14 +190,14 @@ func (x *Security) WhichCredential() case_Security_Credential {
 type Security_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 사용할 자격 증명. 정확히 하나만 설정된다.
+	// The credential to use. Exactly one is set.
 
 	// Fields of oneof xxx_hidden_Credential:
-	// 개방형 / OWE 처럼 자격 증명이 필요 없는 경우.
+	// For cases that need no credential, such as open / OWE.
 	Open *Security_Open
-	// 사전 공유 키(비밀번호). WPA-PSK와 WPA3-SAE를 모두 포괄한다.
+	// Pre-shared key (password). Covers both WPA-PSK and WPA3-SAE.
 	Psk *Security_Psk
-	// 802.1X/EAP enterprise 자격 증명. 향후 구현을 위한 자리.
+	// 802.1X/EAP enterprise credential. A placeholder for future implementation.
 	Enterprise *Security_Enterprise
 	// -- end of xxx_hidden_Credential
 }
@@ -232,17 +233,17 @@ type isSecurity_Credential interface {
 }
 
 type security_Open_ struct {
-	// 개방형 / OWE 처럼 자격 증명이 필요 없는 경우.
+	// For cases that need no credential, such as open / OWE.
 	Open *Security_Open `protobuf:"bytes,1,opt,name=open,oneof"`
 }
 
 type security_Psk_ struct {
-	// 사전 공유 키(비밀번호). WPA-PSK와 WPA3-SAE를 모두 포괄한다.
+	// Pre-shared key (password). Covers both WPA-PSK and WPA3-SAE.
 	Psk *Security_Psk `protobuf:"bytes,2,opt,name=psk,oneof"`
 }
 
 type security_Enterprise_ struct {
-	// 802.1X/EAP enterprise 자격 증명. 향후 구현을 위한 자리.
+	// 802.1X/EAP enterprise credential. A placeholder for future implementation.
 	Enterprise *Security_Enterprise `protobuf:"bytes,3,opt,name=enterprise,oneof"`
 }
 
@@ -252,7 +253,7 @@ func (*security_Psk_) isSecurity_Credential() {}
 
 func (*security_Enterprise_) isSecurity_Credential() {}
 
-// 자격 증명이 필요 없는 네트워크를 의미한다.
+// Represents a network that needs no credential.
 type Security_Open struct {
 	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -296,7 +297,7 @@ func (b0 Security_Open_builder) Build() *Security_Open {
 	return m0
 }
 
-// 사용자가 입력하는 "비밀번호"에 해당한다.
+// Corresponds to the "password" the user enters.
 type Security_Psk struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Passphrase  *string                `protobuf:"bytes,1,opt,name=passphrase"`
@@ -361,7 +362,7 @@ func (x *Security_Psk) ClearPassphrase() {
 type Security_Psk_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 패스프레이즈(사전 공유 키).
+	// Passphrase (pre-shared key).
 	Passphrase *string
 }
 
@@ -376,8 +377,8 @@ func (b0 Security_Psk_builder) Build() *Security_Psk {
 	return m0
 }
 
-// 802.1X/EAP 기반 인증을 위한 자리표시자.
-// EAP 방식, identity, 인증서 등은 실제 구현 시점에 추가된다.
+// Placeholder for 802.1X/EAP-based authentication.
+// The EAP method, identity, certificates, etc. are added at actual implementation time.
 type Security_Enterprise struct {
 	state         protoimpl.MessageState `protogen:"opaque.v1"`
 	unknownFields protoimpl.UnknownFields

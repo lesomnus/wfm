@@ -39,7 +39,7 @@ type ProfileServiceClient interface {
 	Patch(ctx context.Context, in *ProfilePatchRequest, opts ...grpc.CallOption) (*Profile, error)
 	// Erase deletes a Profile
 	Erase(ctx context.Context, in *ProfileRef, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// List는 저장된 모든 프로파일을 열거한다.
+	// List enumerates all stored profiles.
 	List(ctx context.Context, in *ProfileListRequest, opts ...grpc.CallOption) (*ProfileListResponse, error)
 }
 
@@ -113,7 +113,7 @@ type ProfileServiceServer interface {
 	Patch(context.Context, *ProfilePatchRequest) (*Profile, error)
 	// Erase deletes a Profile
 	Erase(context.Context, *ProfileRef) (*emptypb.Empty, error)
-	// List는 저장된 모든 프로파일을 열거한다.
+	// List enumerates all stored profiles.
 	List(context.Context, *ProfileListRequest) (*ProfileListResponse, error)
 	mustEmbedUnimplementedProfileServiceServer()
 }

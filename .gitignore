@@ -1,2 +1,5 @@
 /dist
 /node_modules
+
+# Scan-result cache written by the client in the working directory.
+.wfm

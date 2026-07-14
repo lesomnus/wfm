@@ -40,9 +40,9 @@ type InterfaceServiceClient interface {
 	Patch(ctx context.Context, in *InterfacePatchRequest, opts ...grpc.CallOption) (*Interface, error)
 	// Erase deletes a Interface
 	Erase(ctx context.Context, in *InterfaceRef, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// List는 노드의 모든 무선 인터페이스를 열거한다.
+	// List enumerates all wireless interfaces on the node.
 	List(ctx context.Context, in *InterfaceListRequest, opts ...grpc.CallOption) (*InterfaceListResponse, error)
-	// SetPower는 인터페이스의 라디오 전원을 켜거나 끈다.
+	// SetPower turns the interface's radio on or off.
 	SetPower(ctx context.Context, in *InterfaceSetPowerRequest, opts ...grpc.CallOption) (*Interface, error)
 }
 
@@ -126,9 +126,9 @@ type InterfaceServiceServer interface {
 	Patch(context.Context, *InterfacePatchRequest) (*Interface, error)
 	// Erase deletes a Interface
 	Erase(context.Context, *InterfaceRef) (*emptypb.Empty, error)
-	// List는 노드의 모든 무선 인터페이스를 열거한다.
+	// List enumerates all wireless interfaces on the node.
 	List(context.Context, *InterfaceListRequest) (*InterfaceListResponse, error)
-	// SetPower는 인터페이스의 라디오 전원을 켜거나 끈다.
+	// SetPower turns the interface's radio on or off.
 	SetPower(context.Context, *InterfaceSetPowerRequest) (*Interface, error)
 	mustEmbedUnimplementedInterfaceServiceServer()
 }

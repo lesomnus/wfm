@@ -22,16 +22,16 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// 자동/수동 할당을 선택한다.
+// Selects automatic/manual assignment.
 type IpConfig_Method int32
 
 const (
 	IpConfig_METHOD_UNSPECIFIED IpConfig_Method = 0
-	// 자동: IPv4는 DHCP, IPv6는 SLAAC/DHCPv6로 할당받는다.
+	// Automatic: IPv4 via DHCP, IPv6 via SLAAC/DHCPv6.
 	IpConfig_METHOD_AUTO IpConfig_Method = 1
-	// 수동: 아래 필드들로 정적 설정한다.
+	// Manual: statically configured via the fields below.
 	IpConfig_METHOD_MANUAL IpConfig_Method = 2
-	// 이 주소 체계를 구성하지 않는다.
+	// Do not configure this address family.
 	IpConfig_METHOD_DISABLED IpConfig_Method = 3
 )
 
@@ -73,8 +73,8 @@ func (x IpConfig_Method) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// IpConfig는 한 주소 체계(IPv4 또는 IPv6)의 주소 할당 방식을 기술한다.
-// Profile에 내장되는(JSON으로 저장되는) 값 객체다.
+// IpConfig describes how addresses are assigned for one address family (IPv4 or
+// IPv6). It is a value object embedded in a Profile (stored as JSON).
 type IpConfig struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Method      IpConfig_Method        `protobuf:"varint,1,opt,name=method,enum=wifi.IpConfig_Method"`
@@ -203,13 +203,13 @@ type IpConfig_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Method *IpConfig_Method
-	// CIDR 표기의 주소 목록. 예: "192.168.1.10/24".
+	// List of addresses in CIDR notation. e.g. "192.168.1.10/24".
 	Addresses []string
-	// 기본 게이트웨이. 예: "192.168.1.1".
+	// Default gateway. e.g. "192.168.1.1".
 	Gateway *string
-	// DNS 서버 주소 목록. 예: "1.1.1.1".
+	// List of DNS server addresses. e.g. "1.1.1.1".
 	Dns []string
-	// DNS 검색 도메인 목록.
+	// List of DNS search domains.
 	DnsSearch []string
 }
 
@@ -231,12 +231,13 @@ func (b0 IpConfig_builder) Build() *IpConfig {
 	return m0
 }
 
-// Profile은 과거에 연결했던(또는 앞으로 연결할) 설정을 저장하는 기록이다.
+// Profile is a record that stores settings of a network previously connected to
+// (or to be connected in the future).
 //
-// 대상 네트워크(SSID), 인증 방법(Security), IP/DNS 설정을 담는다.
-// 실제 연결은 이 Profile을 특정 Interface에 적용하여 Connection으로
-// 활성화함으로써 이루어진다. 사용자가 직접 만들고 관리하는 대상이므로
-// 전체 CRUD를 제공한다.
+// It holds the target network (SSID), authentication method (Security), and
+// IP/DNS settings. An actual connection is made by applying this Profile to a
+// specific Interface and activating it as a Connection. Since it is something
+// the user creates and manages directly, full CRUD is provided.
 type Profile struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Id          []byte                 `protobuf:"bytes,1,opt,name=id"`
@@ -527,26 +528,26 @@ func (x *Profile) ClearDateCreated() {
 type Profile_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 프로파일 식별자(자동 생성 UUID).
+	// Profile identifier (auto-generated UUID).
 	Id []byte
-	// 사람이 읽기 위한 이름. 예: "집 와이파이".
+	// Human-readable name. e.g. "Home Wi-Fi".
 	Name *string
-	// 설명.
+	// Description.
 	Desc *string
-	// 연결 대상 네트워크 이름(SSID). 필수 값이다.
+	// Target network name (SSID) to connect to. Required.
 	Ssid *string
-	// SSID가 숨겨진(브로드캐스트되지 않는) 네트워크인지 여부.
-	// 숨김 네트워크는 스캔에 보이지 않으므로 SSID를 직접 지정해 연결한다.
+	// Whether the SSID is a hidden (not broadcast) network.
+	// Hidden networks are invisible in scans, so you connect by specifying the SSID directly.
 	Hidden *bool
-	// 네트워크가 범위 안에 들어오면 자동으로 연결할지 여부.
+	// Whether to connect automatically when the network comes into range.
 	Autoconnect *bool
-	// 이 네트워크에 인증하는 방법. 개방형이면 Security.open을 사용한다.
+	// How to authenticate to this network. Use Security.open for open networks.
 	Security *Security
-	// IPv4 주소 설정. 지정하지 않으면 자동(DHCP)으로 동작한다.
+	// IPv4 address settings. If not set, operates automatically (DHCP).
 	Ipv4 *IpConfig
-	// IPv6 주소 설정. 지정하지 않으면 자동으로 동작한다.
+	// IPv6 address settings. If not set, operates automatically.
 	Ipv6 *IpConfig
-	// 프로파일이 처음 생성된 시각.
+	// The time the profile was first created.
 	DateCreated *timestamppb.Timestamp
 }
 

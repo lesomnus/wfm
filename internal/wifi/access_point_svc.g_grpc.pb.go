@@ -39,7 +39,7 @@ type AccessPointServiceClient interface {
 	Patch(ctx context.Context, in *AccessPointPatchRequest, opts ...grpc.CallOption) (*AccessPoint, error)
 	// Erase deletes a AccessPoint
 	Erase(ctx context.Context, in *AccessPointRef, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Scan은 주어진 인터페이스로 주변 AP를 탐색하여 목록을 돌려준다.
+	// Scan discovers nearby APs using the given interface and returns the list.
 	Scan(ctx context.Context, in *AccessPointScanRequest, opts ...grpc.CallOption) (*AccessPointScanResponse, error)
 }
 
@@ -113,7 +113,7 @@ type AccessPointServiceServer interface {
 	Patch(context.Context, *AccessPointPatchRequest) (*AccessPoint, error)
 	// Erase deletes a AccessPoint
 	Erase(context.Context, *AccessPointRef) (*emptypb.Empty, error)
-	// Scan은 주어진 인터페이스로 주변 AP를 탐색하여 목록을 돌려준다.
+	// Scan discovers nearby APs using the given interface and returns the list.
 	Scan(context.Context, *AccessPointScanRequest) (*AccessPointScanResponse, error)
 	mustEmbedUnimplementedAccessPointServiceServer()
 }

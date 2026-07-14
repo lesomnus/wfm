@@ -1169,7 +1169,7 @@ func (x *InterfaceListResponse) SetItems(v []*Interface) {
 type InterfaceListResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 인터페이스 목록.
+	// List of interfaces.
 	Items []*Interface
 }
 
@@ -1265,9 +1265,9 @@ func (x *InterfaceSetPowerRequest) ClearOn() {
 type InterfaceSetPowerRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 전원을 제어할 인터페이스.
+	// The interface whose power to control.
 	Ref *InterfaceRef
-	// true면 라디오를 켜고, false면 끈다.
+	// If true, turn the radio on; if false, turn it off.
 	On *bool
 }
 

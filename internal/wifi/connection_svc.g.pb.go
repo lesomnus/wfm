@@ -21,24 +21,24 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// ConnectionState는 활성 연결의 진행 상태를 나타낸다.
+// ConnectionState represents the progress state of an active connection.
 type ConnectionState int32
 
 const (
 	ConnectionState_CONNECTION_STATE_UNSPECIFIED ConnectionState = 0
-	// 아직 시작 전.
+	// Not started yet.
 	ConnectionState_CONNECTION_STATE_IDLE ConnectionState = 1
-	// AP에 결합 중(BSS 선택/association).
+	// Associating with the AP (BSS selection/association).
 	ConnectionState_CONNECTION_STATE_ASSOCIATING ConnectionState = 2
-	// 보안 핸드셰이크 수행 중(예: WPA 4-way handshake).
+	// Performing the security handshake (e.g. WPA 4-way handshake).
 	ConnectionState_CONNECTION_STATE_AUTHENTICATING ConnectionState = 3
-	// IP 설정을 받는 중(DHCP/SLAAC).
+	// Obtaining IP configuration (DHCP/SLAAC).
 	ConnectionState_CONNECTION_STATE_CONFIGURING ConnectionState = 4
-	// 완전히 연결되어 사용 가능(성공 끝 상태).
+	// Fully connected and usable (successful terminal state).
 	ConnectionState_CONNECTION_STATE_CONNECTED ConnectionState = 5
-	// 연결 실패(끝 상태). 원인은 error 참고.
+	// Connection failed (terminal state). See error for the cause.
 	ConnectionState_CONNECTION_STATE_FAILED ConnectionState = 6
-	// 해제되는 중.
+	// Being torn down.
 	ConnectionState_CONNECTION_STATE_DISCONNECTING ConnectionState = 7
 )
 
@@ -88,24 +88,24 @@ func (x ConnectionState) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// ConnectionError는 연결이 실패한 원인을 설명한다.
+// ConnectionError explains why a connection failed.
 type ConnectionError int32
 
 const (
 	ConnectionError_CONNECTION_ERROR_UNSPECIFIED ConnectionError = 0
-	// 오류 없음.
+	// No error.
 	ConnectionError_CONNECTION_ERROR_NONE ConnectionError = 1
-	// 인증 실패(잘못된 비밀번호/자격 증명 거부).
+	// Authentication failed (wrong password / credential rejected).
 	ConnectionError_CONNECTION_ERROR_AUTH_FAILED ConnectionError = 2
-	// 대상 SSID를 찾지 못함.
+	// The target SSID could not be found.
 	ConnectionError_CONNECTION_ERROR_NETWORK_NOT_FOUND ConnectionError = 3
-	// 결합/핸드셰이크 시간 초과.
+	// Association/handshake timed out.
 	ConnectionError_CONNECTION_ERROR_ASSOC_TIMEOUT ConnectionError = 4
-	// IP 설정(DHCP 등) 실패.
+	// IP configuration (DHCP, etc.) failed.
 	ConnectionError_CONNECTION_ERROR_IP_CONFIG_FAILED ConnectionError = 5
-	// AP에 의해 끊김 / 신호 상실.
+	// Disconnected by the AP / signal lost.
 	ConnectionError_CONNECTION_ERROR_DISCONNECTED ConnectionError = 6
-	// 알 수 없는 오류.
+	// Unknown error.
 	ConnectionError_CONNECTION_ERROR_UNKNOWN ConnectionError = 7
 )
 
@@ -802,7 +802,7 @@ func (x *ConnectionListRequest) ClearInterface() {
 type ConnectionListRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 지정하면 해당 인터페이스의 연결만 돌려준다(선택).
+	// If set, return only the connections of that interface (optional).
 	Interface *InterfaceRef
 }
 
@@ -862,7 +862,7 @@ func (x *ConnectionListResponse) SetItems(v []*Connection) {
 type ConnectionListResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 활성 연결 목록.
+	// List of active connections.
 	Items []*Connection
 }
 
@@ -874,10 +874,10 @@ func (b0 ConnectionListResponse_builder) Build() *ConnectionListResponse {
 	return m0
 }
 
-// ConnectionStatus는 활성 연결의 실시간 상태 스냅샷이다.
+// ConnectionStatus is a real-time snapshot of an active connection's state.
 //
-// 연결이 유지되는 동안 계속 변하므로 Connection 엔티티에 저장하지 않고
-// Watch/GetStatus를 통해 별도로 전달한다.
+// It keeps changing while the connection is maintained, so it is not stored on
+// the Connection entity and is delivered separately via Watch/GetStatus.
 type ConnectionStatus struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_State       ConnectionState        `protobuf:"varint,1,opt,name=state,enum=wifi.ConnectionState"`
@@ -1101,21 +1101,21 @@ func (x *ConnectionStatus) ClearGateway() {
 type ConnectionStatus_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	// 현재 진행 상태.
+	// Current progress state.
 	State *ConnectionState
-	// state == FAILED 일 때 설정되는 실패 원인.
+	// The failure cause, set when state == FAILED.
 	Error *ConnectionError
-	// 현재 상태/오류에 대한 사람이 읽을 수 있는 부가 설명(선택).
+	// Human-readable additional description of the current state/error (optional).
 	Detail *string
-	// 현재 결합된 AP의 BSSID. 로밍 시 바뀔 수 있다.
+	// BSSID of the currently associated AP. May change on roaming.
 	Bssid *string
-	// 현재 신호 품질(0-100). 클수록 강하다(NetworkManager Strength와 동일 척도).
+	// Current signal quality (0-100). Higher is stronger (same scale as NetworkManager Strength).
 	Signal *int32
-	// 연결 후 실제로 할당된 주소들(CIDR 표기).
+	// The addresses actually assigned after connecting (CIDR notation).
 	Addresses []string
-	// 실제 적용된 기본 게이트웨이.
+	// The default gateway actually applied.
 	Gateway *string
-	// 실제 적용된 DNS 서버들.
+	// The DNS servers actually applied.
 	Dns []string
 }
 

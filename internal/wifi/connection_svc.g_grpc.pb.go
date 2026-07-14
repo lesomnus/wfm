@@ -41,13 +41,14 @@ type ConnectionServiceClient interface {
 	Patch(ctx context.Context, in *ConnectionPatchRequest, opts ...grpc.CallOption) (*Connection, error)
 	// Erase deletes a Connection
 	Erase(ctx context.Context, in *ConnectionRef, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// List는 현재 활성화된 연결들을 열거한다.
+	// List enumerates the currently active connections.
 	List(ctx context.Context, in *ConnectionListRequest, opts ...grpc.CallOption) (*ConnectionListResponse, error)
-	// Watch는 연결이 끝 상태(CONNECTED 또는 FAILED)에 도달할 때까지 상태
-	// 변화를 스트리밍한다. "비번을 넣고 연결되길 기다리는" 흐름의 핵심으로,
-	// 인증 실패(잘못된 비밀번호) 같은 결과도 이 스트림으로 알 수 있다.
+	// Watch streams state changes until the connection reaches a terminal state
+	// (CONNECTED or FAILED). It is the core of the "enter the password and wait
+	// to be connected" flow; results such as an authentication failure (wrong
+	// password) are also delivered through this stream.
 	Watch(ctx context.Context, in *ConnectionRef, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ConnectionStatus], error)
-	// GetStatus는 연결의 현재 상태를 한 번 조회한다(스냅샷).
+	// GetStatus queries the current state of a connection once (a snapshot).
 	GetStatus(ctx context.Context, in *ConnectionRef, opts ...grpc.CallOption) (*ConnectionStatus, error)
 }
 
@@ -150,13 +151,14 @@ type ConnectionServiceServer interface {
 	Patch(context.Context, *ConnectionPatchRequest) (*Connection, error)
 	// Erase deletes a Connection
 	Erase(context.Context, *ConnectionRef) (*emptypb.Empty, error)
-	// List는 현재 활성화된 연결들을 열거한다.
+	// List enumerates the currently active connections.
 	List(context.Context, *ConnectionListRequest) (*ConnectionListResponse, error)
-	// Watch는 연결이 끝 상태(CONNECTED 또는 FAILED)에 도달할 때까지 상태
-	// 변화를 스트리밍한다. "비번을 넣고 연결되길 기다리는" 흐름의 핵심으로,
-	// 인증 실패(잘못된 비밀번호) 같은 결과도 이 스트림으로 알 수 있다.
+	// Watch streams state changes until the connection reaches a terminal state
+	// (CONNECTED or FAILED). It is the core of the "enter the password and wait
+	// to be connected" flow; results such as an authentication failure (wrong
+	// password) are also delivered through this stream.
 	Watch(*ConnectionRef, grpc.ServerStreamingServer[ConnectionStatus]) error
-	// GetStatus는 연결의 현재 상태를 한 번 조회한다(스냅샷).
+	// GetStatus queries the current state of a connection once (a snapshot).
 	GetStatus(context.Context, *ConnectionRef) (*ConnectionStatus, error)
 	mustEmbedUnimplementedConnectionServiceServer()
 }

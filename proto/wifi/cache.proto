@@ -1,0 +1,32 @@
+edition = "2023";
+
+package wifi;
+
+import "google/protobuf/timestamp.proto";
+import "wifi/access_point.proto";
+
+option go_package = "github.com/lesomnus/wfm/internal/wifi";
+
+// ScanCache is the on-disk cache of the most recent access-point scan per
+// interface. The client writes it to a ".wfm" file in the working directory so
+// the UI can show the last-known networks immediately on launch, before a fresh
+// scan completes.
+//
+// It is a plain value object, not an ORM entity: the whole message is marshaled
+// to and from the file as a single blob.
+message ScanCache {
+  // The latest scan for each interface. At most one entry per interface id;
+  // a new scan replaces the previous entry for that interface.
+  repeated InterfaceScan interfaces = 1;
+}
+
+// InterfaceScan is the result of a single scan on one interface.
+message InterfaceScan {
+  // The interface the scan was performed on.
+  string interface_id = 1;
+  // When the scan completed. Entries older than the client's cache TTL are
+  // dropped when the cache is loaded.
+  google.protobuf.Timestamp scanned_at = 2;
+  // The access points the scan found, as returned by AccessPointService.Scan.
+  repeated AccessPoint access_points = 3;
+}
