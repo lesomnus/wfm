@@ -7,7 +7,7 @@ import (
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/arg"
 
-	wifi "github.com/lesomnus/wfm/internal/wifi"
+	"github.com/lesomnus/wfm/internal/wifi"
 )
 
 func NewCmdInterface() *xli.Command {

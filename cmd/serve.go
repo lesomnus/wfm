@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/lesomnus/otx/log"
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/flg"
 	"google.golang.org/grpc"
@@ -56,7 +58,7 @@ func NewCmdServe() *xli.Command {
 				s.GracefulStop()
 			}()
 
-			cmd.Printf("wifi server listening on %s (backend: %s)\n", addr, backendName)
+			log.From(ctx).Info("listen", slog.String("addr", addr), slog.String("backend", backendName))
 			return s.Serve(lis)
 		}),
 	}

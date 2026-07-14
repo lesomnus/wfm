@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	wifi "github.com/lesomnus/wfm/internal/wifi"
+	"github.com/lesomnus/wfm/internal/wifi"
 )
 
 const defaultServer = "127.0.0.1:50051"

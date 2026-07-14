@@ -9,7 +9,7 @@ import (
 	"github.com/lesomnus/xli/arg"
 	"github.com/lesomnus/xli/flg"
 
-	wifi "github.com/lesomnus/wfm/internal/wifi"
+	"github.com/lesomnus/wfm/internal/wifi"
 )
 
 func NewCmdProfile() *xli.Command {

@@ -18,6 +18,11 @@ services:
       - ..:/workspace
       - ${HOME}/workspaces:/workspaces
 
+      # Talk to the host's NetworkManager over its D-Bus system bus.
+      # network_mode: host already shares the host netns (wlp3s0 is visible),
+      # so nmcli just needs the socket. Requires the host to run NetworkManager.
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+
     deploy:
       resources:
         limits:

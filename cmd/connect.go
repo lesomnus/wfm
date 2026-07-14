@@ -9,7 +9,7 @@ import (
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/arg"
 
-	wifi "github.com/lesomnus/wfm/internal/wifi"
+	"github.com/lesomnus/wfm/internal/wifi"
 )
 
 // NewCmdConnect is the headline convenience command implementing the plan
