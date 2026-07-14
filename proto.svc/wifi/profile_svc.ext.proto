@@ -1,14 +1,14 @@
-// ProfileService의 CRUD 외 확장. 이 파일의 내용은 proto-merge에 의해
-// 생성된 profile_svc.g.proto에 병합된다.
+// Extensions to ProfileService beyond CRUD. The contents of this file are
+// merged by proto-merge into the generated profile_svc.g.proto.
 
 service ProfileService {
-  // List는 저장된 모든 프로파일을 열거한다.
+  // List enumerates all stored profiles.
   rpc List(ProfileListRequest) returns (ProfileListResponse);
 }
 
 message ProfileListRequest {}
 
 message ProfileListResponse {
-  // 프로파일 목록.
+  // List of profiles.
   repeated Profile items = 1;
 }

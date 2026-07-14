@@ -6,54 +6,55 @@ import "orm.proto";
 
 option go_package = "github.com/lesomnus/wfm/internal/wifi";
 
-// KeyManagement는 AP가 사용하는 인증/키 관리 프로토콜을 식별한다.
+// KeyManagement identifies the authentication/key-management protocol an AP uses.
 //
-// 스캔 결과(AccessPoint)에서는 "AP가 지원하는 방식"을 나타내고,
-// 프로파일(Profile)의 Security와 짝을 이루어 어떤 자격 증명을 써야 하는지를
-// 결정하는 데 쓰인다.
+// In scan results (AccessPoint) it indicates "the methods the AP supports", and
+// paired with a Profile's Security it is used to decide which credentials must
+// be used.
 enum KeyManagement {
   KEY_MANAGEMENT_UNSPECIFIED = 0;
 
-  // 개방형 네트워크. 인증이 없다.
+  // Open network. No authentication.
   KEY_MANAGEMENT_NONE = 1;
-  // WPA/WPA2 personal. 사전 공유 키(비밀번호) 기반.
+  // WPA/WPA2 personal. Based on a pre-shared key (password).
   KEY_MANAGEMENT_WPA_PSK = 2;
-  // WPA3 personal (SAE). 마찬가지로 비밀번호 기반.
+  // WPA3 personal (SAE). Also password based.
   KEY_MANAGEMENT_SAE = 3;
-  // WPA/WPA2/WPA3 enterprise (802.1X/EAP). 아직 구현되지 않음.
+  // WPA/WPA2/WPA3 enterprise (802.1X/EAP). Not implemented yet.
   KEY_MANAGEMENT_WPA_EAP = 4;
-  // Enhanced Open (OWE). 비밀번호 없이 암호화한다. 아직 구현되지 않음.
+  // Enhanced Open (OWE). Encrypts without a password. Not implemented yet.
   KEY_MANAGEMENT_OWE = 5;
 }
 
-// AccessPoint는 스캔으로 발견된 무선 네트워크(BSS)를 나타낸다.
+// AccessPoint represents a wireless network (BSS) discovered by a scan.
 //
-// 스캔 결과는 라디오 환경에 의해 *발견*되는 것이지 클라이언트가 만드는
-// 것이 아니므로 Add/Patch/Erase는 의미상 맞지 않는다. 다만 테스트(mock 등)의
-// 편의를 위해 CRUD를 모두 정의해 두고, 실제 서비스 구현은 이들에 대해
-// unimplemented를 반환한다. 스캔 자체는 AccessPointService.Scan
-// (access_point_svc.ext.proto)에서 추가한다.
+// Scan results are *discovered* through the radio environment rather than
+// created by a client, so Add/Patch/Erase do not make semantic sense. However,
+// for the convenience of testing (mocks, etc.) all CRUD operations are defined,
+// and the real service implementation returns unimplemented for them. The scan
+// itself is added by AccessPointService.Scan (access_point_svc.ext.proto).
 message AccessPoint {
-  // 발견된 AP의 안정적인 식별자. 구현은 BSSID를 그대로 쓸 수 있다.
+  // Stable identifier of the discovered AP. Implementations may use the BSSID
+  // directly.
   string id = 1 [(orm.field) = {
     key: true
     default: ""
   }];
 
-  // 네트워크 이름(SSID). 히든 네트워크의 경우 비어 있을 수 있다.
+  // Network name (SSID). May be empty for hidden networks.
   string ssid = 2 [(orm.field) = {default: ""}];
-  // AP의 하드웨어 주소(BSSID).
+  // Hardware address (BSSID) of the AP.
   string bssid = 3 [(orm.field) = {default: ""}];
-  // 신호 품질(0-100). 클수록 강하다(NetworkManager Strength와 동일 척도).
+  // Signal quality (0-100). Higher is stronger (same scale as NetworkManager Strength).
   int32 signal = 4 [(orm.field) = {default: ""}];
-  // 채널 주파수(MHz). 예: 2412(2.4GHz), 5180(5GHz).
+  // Channel frequency (MHz). e.g. 2412 (2.4GHz), 5180 (5GHz).
   uint32 frequency = 5 [(orm.field) = {default: ""}];
 
-  // 이 AP가 광고하는 인증/키 관리 방식들.
-  // 클라이언트는 이 목록을 보고 알맞은 Security를 가진 Profile을 고른다.
+  // The authentication/key-management methods this AP advertises.
+  // A client looks at this list to pick a Profile with a matching Security.
   repeated KeyManagement key_management = 6;
 
-  // 테스트 편의를 위해 CRUD를 모두 정의한다(실제 서비스는 Add/Patch/Erase에
-  // 대해 unimplemented 반환).
+  // Define all CRUD for testing convenience (the real service returns
+  // unimplemented for Add/Patch/Erase).
   option (orm.message) = {rpc: {crud: true}};
 }

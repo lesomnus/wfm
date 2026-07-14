@@ -14,15 +14,25 @@ var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "�
 
 const idleBullet = "●"
 
+// markConnected flags the active connection in the AP list; markSaved flags a
+// network that has a matching saved profile.
+const (
+	markConnected = "⚹"
+	markSaved     = "•"
+)
+
 // Access-point table column widths (SSID takes the remaining space). The SIGNAL
 // column is exactly wide enough for "NNN gg": a 3-digit strength, a space, and
-// the 2-cell braille gauge.
+// the 2-cell braille gauge. The leading MARK column holds the connected/saved
+// status glyph.
 const (
+	colMark = 1
 	colChan = 4
 	colSig  = 6
 	colSec  = 8
-	// colFixed is every non-SSID column plus the single-space separators.
-	colFixed = colChan + colSig + colSec + 3
+	// colFixed is every non-SSID column plus the single-space separators and the
+	// one-space left gutter.
+	colFixed = colMark + colChan + colSig + colSec + 4 + 1
 )
 
 var (
@@ -41,6 +51,10 @@ var (
 	selectedStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("0")).
 			Background(lipgloss.Color("6"))
+
+	// Status accents: green for the active connection, yellow for a saved profile.
+	connectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	savedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 )
 
 func (m model) View() string {
@@ -143,7 +157,7 @@ func (m model) apTable(w, rows int) string {
 		ssidW = 4
 	}
 
-	head := colHeadStyle.Render(clip(apLine(ssidW, "SSID", "CHAN", "SIGNAL", "SECURITY"), w))
+	head := colHeadStyle.Render(clip(apLine(ssidW, " ", "SSID", "CHAN", "SIGNAL", "SECURITY"), w))
 	lines := []string{head}
 
 	// One line is used by the column header.
@@ -174,12 +188,14 @@ func (m model) apTable(w, rows int) string {
 		}
 		selected := i == m.apIndex
 		sig := fmt.Sprintf("%3d %s", ap.GetSignal(), signalMeter(ap.GetSignal()))
-		// Color the strength + gauge by level. The selected row is left plain so
-		// the selection background stays legible.
+		// Color the strength + gauge and the status glyph by level. The selected
+		// row is left plain so the selection background stays legible.
+		mark := m.apMark(ap, selected)
 		if !selected {
 			sig = lipgloss.NewStyle().Foreground(signalColor(ap.GetSignal())).Render(sig)
 		}
 		line := apLine(ssidW,
+			mark,
 			ssid,
 			channelStr(ap.GetFrequency()),
 			sig,
@@ -194,14 +210,37 @@ func (m model) apTable(w, rows int) string {
 	return strings.Join(lines, "\n")
 }
 
-// apLine lays out one row: SSID (left), CHAN (right-aligned), SIGNAL (strength
-// plus braille gauge, preformatted to colSig), and SECURITY. The same layout
-// renders the column header.
-func apLine(ssidW int, ssid, chn, sig, sec string) string {
-	return padRight(ssid, ssidW) + " " +
+// apLine lays out one row: MARK (status glyph), SSID (left), CHAN
+// (right-aligned), SIGNAL (strength plus braille gauge, preformatted to colSig),
+// and SECURITY. The same layout renders the column header.
+func apLine(ssidW int, mark, ssid, chn, sig, sec string) string {
+	return " " +
+		padRight(mark, colMark) + " " +
+		padRight(ssid, ssidW) + " " +
 		padLeft(chn, colChan) + " " +
 		padRight(sig, colSig) + " " +
 		padRight(sec, colSec)
+}
+
+// apMark returns the leading status glyph for ap: a filled dot for the active
+// connection, a star for a network with a saved profile, or a blank otherwise.
+// Connected takes precedence. The glyph is left uncolored on the selected row so
+// the selection background stays legible.
+func (m model) apMark(ap *wifi.AccessPoint, selected bool) string {
+	switch {
+	case m.isConnected(ap):
+		if selected {
+			return markConnected
+		}
+		return connectedStyle.Render(markConnected)
+	case m.profileFor(ap) != nil:
+		if selected {
+			return markSaved
+		}
+		return savedStyle.Render(markSaved)
+	default:
+		return " "
+	}
 }
 
 // rightContent renders the details of the highlighted access point.
@@ -232,11 +271,87 @@ func (m model) rightContent(w int) string {
 		writeField(&b, "ID", id)
 	}
 
+	// When this network has a saved profile, show its configuration below a
+	// divider. The connection state (and IP) is already visible in the header.
+	if p := m.profileFor(ap); p != nil {
+		b.WriteString("\n")
+		b.WriteString(dividerStyle.Render(strings.Repeat("─", w)))
+		b.WriteString("\n")
+		title := savedStyle.Render(markSaved+" ") + headerStyle.Render("Profile")
+		b.WriteString(title)
+		b.WriteString("\n\n")
+
+		if name := p.GetName(); name != "" {
+			writeField(&b, "Name", name)
+		}
+		if desc := p.GetDesc(); desc != "" {
+			writeField(&b, "Desc", desc)
+		}
+		writeField(&b, "Autoconnect", yesNo(p.GetAutoconnect()))
+		if p.GetHidden() {
+			writeField(&b, "Hidden", "yes")
+		}
+		writeField(&b, "Security", profileSecurity(p.GetSecurity()))
+		writeField(&b, "IPv4", ipMethod(p.GetIpv4()))
+		writeField(&b, "IPv6", ipMethod(p.GetIpv6()))
+	}
+
 	return b.String()
 }
 
+// yesNo renders a boolean as a human-readable flag.
+func yesNo(v bool) string {
+	if v {
+		return "yes"
+	}
+	return "no"
+}
+
+// profileSecurity summarizes the credential kind stored in a profile's Security.
+func profileSecurity(s *wifi.Security) string {
+	switch {
+	case s == nil:
+		return "-"
+	case s.GetPsk() != nil:
+		return "WPA/PSK"
+	case s.GetEnterprise() != nil:
+		return "802.1X"
+	case s.GetOpen() != nil:
+		return "open"
+	default:
+		return "-"
+	}
+}
+
+// ipMethod summarizes an IpConfig as its assignment mode, appending the first
+// static address when configured manually. A nil config means automatic.
+func ipMethod(c *wifi.IpConfig) string {
+	if c == nil {
+		return "auto"
+	}
+	switch c.GetMethod() {
+	case wifi.IpConfig_METHOD_MANUAL:
+		if addrs := c.GetAddresses(); len(addrs) > 0 {
+			return "manual • " + addrs[0]
+		}
+		return "manual"
+	case wifi.IpConfig_METHOD_DISABLED:
+		return "disabled"
+	default:
+		return "auto"
+	}
+}
+
+// fieldLabelW is the column the field value starts at; labels are padded to it
+// (and always followed by at least one space so long labels never touch values).
+const fieldLabelW = 11
+
 func writeField(b *strings.Builder, label, value string) {
-	b.WriteString(labelStyle.Render(fmt.Sprintf("%-10s", label)))
+	if len(label) > fieldLabelW {
+		label = label[:fieldLabelW]
+	}
+	b.WriteString(labelStyle.Render(label))
+	b.WriteString(strings.Repeat(" ", fieldLabelW-len(label)+1))
 	b.WriteString(value)
 	b.WriteString("\n")
 }

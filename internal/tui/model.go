@@ -31,8 +31,12 @@ type model struct {
 
 	ifaces  []*wifi.Interface
 	ifIndex int
-	ifAddr  string           // IP assigned to the selected interface, if connected
+	ifAddr  string            // IP assigned to the selected interface, if connected
 	connAP  *wifi.AccessPoint // AP the selected interface is connected to, if any
+
+	// profiles are the saved connection profiles, matched to access points by
+	// SSID to flag which scanned networks are already known.
+	profiles []*wifi.Profile
 
 	// aps holds the scan result for the currently selected interface, sorted by
 	// descending signal strength.
@@ -63,6 +67,39 @@ func (m model) selectedAP() *wifi.AccessPoint {
 		return nil
 	}
 	return m.aps[m.apIndex]
+}
+
+// isConnected reports whether ap is the access point the selected interface is
+// currently connected to, matching on id or BSSID.
+func (m model) isConnected(ap *wifi.AccessPoint) bool {
+	if m.connAP == nil || ap == nil {
+		return false
+	}
+	if id := m.connAP.GetId(); id != "" && id == ap.GetId() {
+		return true
+	}
+	if b := m.connAP.GetBssid(); b != "" && b == ap.GetBssid() {
+		return true
+	}
+	return false
+}
+
+// profileFor returns the saved profile matching ap by SSID, or nil if none. APs
+// with no SSID (hidden networks in a scan) never match.
+func (m model) profileFor(ap *wifi.AccessPoint) *wifi.Profile {
+	if ap == nil {
+		return nil
+	}
+	ssid := ap.GetSsid()
+	if ssid == "" {
+		return nil
+	}
+	for _, p := range m.profiles {
+		if p.GetSsid() == ssid {
+			return p
+		}
+	}
+	return nil
 }
 
 // triggerScan starts a scan of interface ifID. When clear is set the current
@@ -161,7 +198,7 @@ func (m *model) scroll(rows, dir int) {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(m.listInterfacesCmd(), scanTickCmd())
+	return tea.Batch(m.listInterfacesCmd(), m.listProfilesCmd(), scanTickCmd())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -210,8 +247,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, spinnerTickCmd()
 
 	case scanTickMsg:
-		// Reschedule, and refresh the current interface if idle.
-		cmds := []tea.Cmd{scanTickCmd()}
+		// Reschedule, refresh the profile list, and refresh the current interface
+		// if idle.
+		cmds := []tea.Cmd{scanTickCmd(), m.listProfilesCmd()}
 		if it := m.selectedIface(); it != nil {
 			if c := m.triggerScan(it.GetId(), false); c != nil {
 				cmds = append(cmds, c)
@@ -219,6 +257,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.ifaceStatusCmd(it.GetId()))
 		}
 		return m, tea.Batch(cmds...)
+
+	case profilesLoadedMsg:
+		// A profile-list failure is non-fatal: keep the previous list rather than
+		// clobbering the status line used for scan/connection errors.
+		if msg.err == nil {
+			m.profiles = msg.items
+		}
+		return m, nil
 
 	case scanResultMsg:
 		// Ignore results for an interface the user already navigated away from.

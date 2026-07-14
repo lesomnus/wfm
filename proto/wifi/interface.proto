@@ -6,34 +6,37 @@ import "orm.proto";
 
 option go_package = "github.com/lesomnus/wfm/internal/wifi";
 
-// Interface는 리모트 노드의 무선 네트워크 인터페이스(라디오) 하나를 나타낸다.
-// 예: wlan0. 한 노드에 두 개 이상 존재할 수 있다.
+// Interface represents a single wireless network interface (radio) on a remote
+// node. e.g. wlan0. A node may have more than one.
 //
-// 인터페이스는 하드웨어로부터 *발견*되는 대상이므로 클라이언트가 직접
-// 생성하거나 삭제하는 것은 의미상 맞지 않는다. 다만 테스트(mock 등)의
-// 편의를 위해 CRUD를 모두 정의해 두고, 실제 서비스 구현은 Add/Patch/Erase에
-// 대해 unimplemented를 반환한다. 목록 조회와 전원 제어(켜기/끄기)는
-// InterfaceService 확장(interface_svc.ext.proto)에서 별도 RPC로 추가한다.
+// An interface is a target that is *discovered* from the hardware, so having a
+// client create or delete it directly does not make semantic sense. However,
+// for the convenience of testing (mocks, etc.) all CRUD operations are defined,
+// and the real service implementation returns unimplemented for
+// Add/Patch/Erase. Listing and power control (on/off) are added as separate
+// RPCs in the InterfaceService extension (interface_svc.ext.proto).
 message Interface {
-  // 인터페이스 식별자. 구현에 따라 ifname(예: "wlan0")을 그대로 쓸 수 있다.
+  // Interface identifier. Depending on the implementation, the ifname
+  // (e.g. "wlan0") may be used directly.
   string id = 1 [(orm.field) = {
     key: true
     default: ""
   }];
-  // 사람이 읽기 위한 이름.
+  // Human-readable name.
   string name = 5 [(orm.field) = {default: ""}];
-  // 설명.
+  // Description.
   string desc = 6 [(orm.field) = {default: ""}];
 
-  // 하드웨어(MAC) 주소.
+  // Hardware (MAC) address.
   string mac = 7 [(orm.field) = {default: ""}];
-  // 라디오 전원 상태(rfkill 등). true면 켜져 있어 스캔/연결이 가능하다.
-  // 시스템이 보고하며, 값을 바꾸려면 InterfaceService.SetPower를 사용한다.
+  // Radio power state (rfkill, etc.). If true, it is on and scanning/connecting
+  // is possible. Reported by the system; use InterfaceService.SetPower to change
+  // the value.
   bool powered = 8 [(orm.field) = {default: ""}];
-  // 링크가 활성(up) 상태인지 여부. 시스템이 보고하는 읽기 전용 상태다.
+  // Whether the link is up (active). A read-only state reported by the system.
   bool up = 9 [(orm.field) = {default: ""}];
 
-  // 테스트 편의를 위해 CRUD를 모두 정의한다(실제 서비스는 Add/Patch/Erase에
-  // 대해 unimplemented 반환).
+  // Define all CRUD for testing convenience (the real service returns
+  // unimplemented for Add/Patch/Erase).
   option (orm.message) = {rpc: {crud: true}};
 }

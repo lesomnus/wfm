@@ -43,7 +43,7 @@ for (const f of service_files) {
 	const v = path.join(path.join(rootDir, "proto", r), `${n}.g.proto`);
 	if (fs.existsSync(p)) {
 		const o = fs.createWriteStream(v);
-		await $`go tool github.com/lesomnus/proto-merge ${f} ${p}`.pipe(o);
+		await $`go tool github.com/protobuf-orm/protobuf-merge ${f} ${p}`.pipe(o);
 	} else {
 		fs.copyFileSync(f, v);
 	}

@@ -1,21 +1,21 @@
-// AccessPointService의 CRUD 외 확장. 이 파일의 내용은 proto-merge에 의해
-// 생성된 access_point_svc.g.proto에 병합된다.
+// Extensions to AccessPointService beyond CRUD. The contents of this file are
+// merged by proto-merge into the generated access_point_svc.g.proto.
 
-// InterfaceRef를 참조하기 위해 인터페이스 서비스 정의를 가져온다.
+// Import the interface service definition to reference InterfaceRef.
 import "wifi/interface_svc.g.proto";
 
 service AccessPointService {
-  // Scan은 주어진 인터페이스로 주변 AP를 탐색하여 목록을 돌려준다.
+  // Scan discovers nearby APs using the given interface and returns the list.
   rpc Scan(AccessPointScanRequest) returns (AccessPointScanResponse);
 }
 
 message AccessPointScanRequest {
-  // 스캔에 사용할 무선 인터페이스. 노드에 인터페이스가 여러 개일 수 있으므로
-  // 반드시 지정한다.
+  // The wireless interface to scan with. Must be specified since a node may have
+  // multiple interfaces.
   InterfaceRef interface = 1;
 }
 
 message AccessPointScanResponse {
-  // 발견된 AP 목록.
+  // List of discovered APs.
   repeated AccessPoint items = 1;
 }

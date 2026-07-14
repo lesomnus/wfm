@@ -143,6 +143,27 @@ type scanResultMsg struct {
 	err   error
 }
 
+// profilesLoadedMsg carries the result of listing saved connection profiles.
+type profilesLoadedMsg struct {
+	items []*wifi.Profile
+	err   error
+}
+
+// listProfilesCmd lists the saved connection profiles known to the server.
+func (m model) listProfilesCmd() tea.Cmd {
+	parent, cc := m.ctx, m.cc
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(parent, statusTimeout)
+		defer cancel()
+
+		resp, err := wifi.NewProfileServiceClient(cc).List(ctx, &wifi.ProfileListRequest{})
+		if err != nil {
+			return profilesLoadedMsg{err: err}
+		}
+		return profilesLoadedMsg{items: resp.GetItems()}
+	}
+}
+
 // listInterfacesCmd lists the wireless interfaces known to the server.
 func (m model) listInterfacesCmd() tea.Cmd {
 	ctx, cc := m.ctx, m.cc
