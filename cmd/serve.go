@@ -10,7 +10,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/lesomnus/otx"
 	"github.com/lesomnus/otx/log"
+	"github.com/lesomnus/otx/otxgrpc"
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/flg"
 	"google.golang.org/grpc"
@@ -35,6 +37,7 @@ func NewCmdServe() *xli.Command {
 			if backendName == "" {
 				backendName = detectBackend()
 			}
+
 			b, err := newBackend(backendName)
 			if err != nil {
 				return err
@@ -49,7 +52,11 @@ func NewCmdServe() *xli.Command {
 			ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
-			s := grpc.NewServer()
+			o := otx.From(ctx)
+			s := grpc.NewServer(
+				grpc.StatsHandler(otxgrpc.NewServerHandler(o)),
+				grpc.StatsHandler(otxgrpc.NewServerLogger()),
+			)
 			server.Register(s, b)
 
 			go func() {

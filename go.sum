@@ -35,6 +35,8 @@ github.com/lesomnus/mkot/pretty v0.0.0-20260611164331-66886cdbecf0 h1:7iRTbcJ1fR
 github.com/lesomnus/mkot/pretty v0.0.0-20260611164331-66886cdbecf0/go.mod h1:q0Cutry0+W4Ru5ziccaE1rS/QcGFD+1GvbL3EMPZVyk=
 github.com/lesomnus/otx v0.0.0-20260531101103-be4e3034ac45 h1:xg3UVYEp+YhC06xLeQ2ZSw/l2tK8FMBsw48vp+XYnHw=
 github.com/lesomnus/otx v0.0.0-20260531101103-be4e3034ac45/go.mod h1:Atr7LTFSnIfghys24rsaDi19sd9rsAA0rnpwRBMaRdo=
+github.com/lesomnus/otx/otxgrpc v0.0.0-20260531101103-be4e3034ac45 h1:DhZwwCqB5O8i//alSlIZkNrzFWkuaXI+jLVyMDZ+khY=
+github.com/lesomnus/otx/otxgrpc v0.0.0-20260531101103-be4e3034ac45/go.mod h1:EaJpCAqZCq+vRSqrKjhrl+HA/CNzpSX3AKCEcBhFvNA=
 github.com/lesomnus/proto-merge v0.0.0-20260526144828-be3fb2eddaff h1:XvsEjlnjGJGdeESvaM8zW93eALrjFy9aJqdGJfHsNFg=
 github.com/lesomnus/proto-merge v0.0.0-20260526144828-be3fb2eddaff/go.mod h1:f9OEthE8hIqNe/q8N4Li3QdimE5wNnoRxgAyIeQLq5E=
 github.com/lesomnus/xli v0.0.0-20260415201908-e5f4624a24b7 h1:tQwbwldgmI803eqjgaBCYptj8M8rRQ+No2hgUXaj+P4=
@@ -59,6 +61,8 @@ go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/contrib/bridges/otelslog v0.18.0 h1:hhPGP3zvvy1xWT9RTy970wlniSxFttBIsAK1gvMguJM=
 go.opentelemetry.io/contrib/bridges/otelslog v0.18.0/go.mod h1:twJF7inoMza6kxMcF8JOdL3mPmtOZu7GEr34CUNE6Dg=
+go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0 h1:RN3ifU8y4prNWeEnQp2kRRHz8UwonAEYZl8tUzHEXAk=
+go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0/go.mod h1:habDz3tEWiFANTo6oUE99EmaFUrCNYAAg3wiVmusm70=
 go.opentelemetry.io/otel v1.44.0 h1:JjwHmHpA4iZ3wBxluu2fbbE7j4kqlE8jXyAyPXH7HqU=
 go.opentelemetry.io/otel v1.44.0/go.mod h1:BMgjTHL9WPRlRjL2oZCBTL4whCGtXch2H4BhOPIAyYc=
 go.opentelemetry.io/otel/log v0.19.0 h1:KUZs/GOsw79TBBMfDWsXS+KZ4g2Ckzksd1ymzsIEbo4=

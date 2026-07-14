@@ -22,7 +22,7 @@ func NewCmdInterface() *xli.Command {
 				Aliases: []string{"ls"},
 				Brief:   "list wireless interfaces",
 				Handler: xli.OnRun(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}
@@ -54,7 +54,7 @@ func NewCmdInterface() *xli.Command {
 						return err
 					}
 
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}

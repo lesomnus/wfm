@@ -33,7 +33,7 @@ func NewCmdConnect() *xli.Command {
 				return fmt.Errorf("usage: connect <interface> <ssid> [psk]")
 			}
 
-			cc, err := dial(cmd)
+			cc, err := dial(ctx, cmd)
 			if err != nil {
 				return err
 			}
@@ -105,7 +105,7 @@ func NewCmdConnection() *xli.Command {
 				Aliases: []string{"ls"},
 				Brief:   "list active connections",
 				Handler: xli.OnRun(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}
@@ -131,7 +131,7 @@ func NewCmdConnection() *xli.Command {
 					if err != nil {
 						return err
 					}
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}
@@ -154,7 +154,7 @@ func NewCmdConnection() *xli.Command {
 					if err != nil {
 						return err
 					}
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}
@@ -185,7 +185,7 @@ func NewCmdConnection() *xli.Command {
 					if err != nil {
 						return err
 					}
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}

@@ -17,6 +17,7 @@ require (
 	github.com/lesomnus/mkot v0.0.0-20260611164331-66886cdbecf0
 	github.com/lesomnus/mkot/pretty v0.0.0-20260611164331-66886cdbecf0
 	github.com/lesomnus/otx v0.0.0-20260531101103-be4e3034ac45
+	github.com/lesomnus/otx/otxgrpc v0.0.0-20260531101103-be4e3034ac45
 	github.com/lesomnus/xli v0.0.0-20260415201908-e5f4624a24b7
 	github.com/lesomnus/z v0.0.0-20260531102454-3f1853bb4278
 	github.com/protobuf-orm/protobuf-orm v0.0.0-20251101182603-e9f1689e55bb
@@ -39,6 +40,7 @@ require (
 	github.com/protobuf-orm/protoc-gen-orm-service v0.0.0-20251123192756-9b1138e7eef5 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.18.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0 // indirect
 	go.opentelemetry.io/otel/log v0.19.0 // indirect
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect

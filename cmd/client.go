@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lesomnus/otx"
+	"github.com/lesomnus/otx/otxgrpc"
 	"github.com/lesomnus/xli"
 	"github.com/lesomnus/xli/flg"
 	"google.golang.org/grpc"
@@ -70,13 +72,23 @@ func (c *clientConn) Close() error {
 	return err
 }
 
+// clientOpts returns the dial options shared by every client connection: the
+// insecure transport plus the otxgrpc client handler, which logs and traces
+// each outgoing RPC using the request-scoped otx.
+func clientOpts(ctx context.Context) []grpc.DialOption {
+	return []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otxgrpc.NewClientHandler(otx.From(ctx))),
+	}
+}
+
 // dial connects to a running server, preferring an explicit --server address,
 // then the default unix socket if a server is listening there. If neither is
 // available it spins up an in-process server over an in-memory bufconn so a
 // single invocation can serve itself.
-func dial(cmd *xli.Command) (*clientConn, error) {
+func dial(ctx context.Context, cmd *xli.Command) (*clientConn, error) {
 	if addr := serverAddr(cmd); addr != "" {
-		cc, err := grpc.NewClient(dialTarget(addr), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cc, err := grpc.NewClient(dialTarget(addr), clientOpts(ctx)...)
 		if err != nil {
 			return nil, err
 		}
@@ -85,14 +97,14 @@ func dial(cmd *xli.Command) (*clientConn, error) {
 
 	sock := defaultSocketPath()
 	if isListening(sock) {
-		cc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cc, err := grpc.NewClient("unix://"+sock, clientOpts(ctx)...)
 		if err != nil {
 			return nil, err
 		}
 		return &clientConn{ClientConn: cc}, nil
 	}
 
-	return dialInProc(cmd)
+	return dialInProc(ctx, cmd)
 }
 
 // isListening reports whether a server currently accepts connections on the
@@ -107,8 +119,10 @@ func isListening(sock string) bool {
 }
 
 // dialInProc starts a server backed by the local wifi backend and returns a
-// client wired to it over a bufconn; closing the conn tears both down.
-func dialInProc(cmd *xli.Command) (*clientConn, error) {
+// client wired to it over a bufconn; closing the conn tears both down. The
+// in-process server carries the same boundary logger as the standalone serve
+// command so a self-serving invocation is logged the same way.
+func dialInProc(ctx context.Context, cmd *xli.Command) (*clientConn, error) {
 	name, _ := flg.Find[string](cmd, "backend")
 	if name == "" {
 		name = detectBackend()
@@ -119,16 +133,20 @@ func dialInProc(cmd *xli.Command) (*clientConn, error) {
 		return nil, err
 	}
 
+	o := otx.From(ctx)
 	lis := bufconn.Listen(1 << 20)
-	s := grpc.NewServer()
+	s := grpc.NewServer(
+		grpc.StatsHandler(otxgrpc.NewServerHandler(o)),
+		grpc.StatsHandler(otxgrpc.NewServerLogger()),
+	)
 	server.Register(s, b)
 	go s.Serve(lis)
 
-	cc, err := grpc.NewClient("passthrough:///bufnet",
+	opts := append(clientOpts(ctx),
 		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
 			return lis.DialContext(ctx)
-		}),
-		grpc.WithTransportCredentials(insecure.NewCredentials()))
+		}))
+	cc, err := grpc.NewClient("passthrough:///bufnet", opts...)
 	if err != nil {
 		s.Stop()
 		b.Close()

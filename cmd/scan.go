@@ -23,7 +23,7 @@ func NewCmdScan() *xli.Command {
 				return fmt.Errorf("interface is required")
 			}
 
-			cc, err := dial(cmd)
+			cc, err := dial(ctx, cmd)
 			if err != nil {
 				return err
 			}

@@ -24,7 +24,7 @@ func NewCmdProfile() *xli.Command {
 				Aliases: []string{"ls"},
 				Brief:   "list saved profiles",
 				Handler: xli.OnRun(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}
@@ -54,7 +54,7 @@ func NewCmdProfile() *xli.Command {
 					if err != nil {
 						return fmt.Errorf("invalid uuid: %w", err)
 					}
-					cc, err := dial(cmd)
+					cc, err := dial(ctx, cmd)
 					if err != nil {
 						return err
 					}
@@ -129,7 +129,7 @@ func newCmdProfileAdd() *xli.Command {
 				req.SetIpv4(cfg)
 			}
 
-			cc, err := dial(cmd)
+			cc, err := dial(ctx, cmd)
 			if err != nil {
 				return err
 			}
