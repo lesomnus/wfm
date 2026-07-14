@@ -32,7 +32,6 @@ func NewCmdRoot() *xli.Command {
 		},
 
 		Handler: xli.Chain(
-			xli.RequireSubcommand(),
 			xli.OnRunPass(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
 				if frm.HasSeq(frm.From(ctx).Next(), "version") {
 					return next(ctx)
@@ -47,6 +46,13 @@ func NewCmdRoot() *xli.Command {
 				defer o.Shutdown(ctx)
 
 				return next(ctx)
+			}),
+			// No subcommand: start the interactive TUI. OnRun fires only when
+			// the root is the terminal command; with a subcommand it passes
+			// through to dispatch. It runs after config init above so the TUI's
+			// RPCs share the same otx as the CLI.
+			xli.OnRun(func(ctx context.Context, cmd *xli.Command, next xli.Next) error {
+				return runTUI(ctx, cmd)
 			}),
 		),
 	}
