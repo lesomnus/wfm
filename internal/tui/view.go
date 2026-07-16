@@ -33,6 +33,11 @@ const (
 	// colFixed is every non-SSID column plus the single-space separators and the
 	// one-space left gutter.
 	colFixed = colMark + colChan + colSig + colSec + 4 + 1
+
+	// minLeftOuter is the narrowest the left (list) panel may get before the
+	// detail panel is dropped: the fixed columns plus room for a short SSID and
+	// the right-padding gutter.
+	minLeftOuter = colFixed + 12
 )
 
 var (
@@ -80,25 +85,37 @@ func (m model) View() string {
 	if rightOuter > m.width/2 {
 		rightOuter = m.width / 2
 	}
-	leftOuter := m.width - rightOuter
+
+	// Responsive: when showing the detail panel would leave the AP list too
+	// cramped, drop the panel entirely and let the list use the full width.
+	showRight := m.width-rightOuter >= minLeftOuter
+	leftOuter := m.width
+	if showRight {
+		leftOuter = m.width - rightOuter
+	}
 
 	// Left panel: no border, one column of right padding as a gutter.
 	textLeft := leftOuter - 1
-	// Right panel: lipgloss Width/Height cover the padded box (not the border),
-	// and our text is a further horizontal padding(2) narrower.
-	rightBox := rightOuter - 2
-	rightInnerH := bodyH - 2
-	textRight := rightOuter - 4
-	for _, v := range []*int{&textLeft, &rightBox, &rightInnerH, &textRight} {
-		if *v < 1 {
-			*v = 1
-		}
+	if textLeft < 1 {
+		textLeft = 1
 	}
-
 	left := leftPanelStyle.Width(leftOuter).Height(bodyH).Render(m.leftContent(textLeft, bodyH))
-	right := rightPanelStyle.Width(rightBox).Height(rightInnerH).Render(m.rightContent(textRight))
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
+	body := left
+	if showRight {
+		// Right panel: lipgloss Width/Height cover the padded box (not the
+		// border), and our text is a further horizontal padding(2) narrower.
+		rightBox := rightOuter - 2
+		rightInnerH := bodyH - 2
+		textRight := rightOuter - 4
+		for _, v := range []*int{&rightBox, &rightInnerH, &textRight} {
+			if *v < 1 {
+				*v = 1
+			}
+		}
+		right := rightPanelStyle.Width(rightBox).Height(rightInnerH).Render(m.rightContent(textRight))
+		body = lipgloss.JoinHorizontal(lipgloss.Top, left, right)
+	}
 	return body + "\n" + m.statusBar(m.width)
 }
 
@@ -277,8 +294,7 @@ func (m model) rightContent(w int) string {
 		b.WriteString("\n")
 		b.WriteString(dividerStyle.Render(strings.Repeat("─", w)))
 		b.WriteString("\n")
-		title := savedStyle.Render(markSaved+" ") + headerStyle.Render("Profile")
-		b.WriteString(title)
+		b.WriteString(headerStyle.Render("Profile"))
 		b.WriteString("\n\n")
 
 		if name := p.GetName(); name != "" {

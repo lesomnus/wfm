@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // NetworkManager device state codes (subset) as reported by
@@ -229,13 +230,75 @@ type AP struct {
 	Security string // raw, e.g. "WPA2", "WPA1 WPA2", "" for open
 }
 
+// Access-point scan tuning. A single `list --rescan yes` is unreliable on some
+// drivers (notably the Realtek rtw88 USB adapters): while associated, one forced
+// scan often comes back with just the currently connected BSS, and
+// NetworkManager's cached list can collapse to that lone entry. Recovering the
+// full neighbourhood takes a few explicit rescans — the same reason a user has
+// to run `nmcli device wifi rescan` by hand a couple of times. These control how
+// many times Scan retries and how long it lets each rescan settle before reading
+// NetworkManager's accumulated list.
+const (
+	scanAttempts    = 4
+	scanSettleDelay = 1500 * time.Millisecond
+)
+
 // Scan lists access points visible to the given interface, forcing a rescan.
+//
+// Rather than `list --rescan yes` (which reads results right after a single
+// forced scan and is flaky on rtw88/USB adapters), it triggers an explicit
+// rescan, lets it settle, then reads NetworkManager's accumulated scan list with
+// `--rescan no`. It repeats until it sees an access point other than the one the
+// interface is associated with, because those drivers need several scans before
+// neighbours appear. Requires privileges: without them the rescan request is
+// refused by NetworkManager and only the cached (often connected-only) list is
+// returned.
 func Scan(ctx context.Context, ifname string) ([]AP, error) {
+	var best []AP
+	var lastErr error
+	for attempt := 0; attempt < scanAttempts; attempt++ {
+		// Trigger a fresh scan. Ignore errors here (e.g. a scan already in
+		// progress, or "scanning not allowed immediately following previous
+		// scan"): the accumulated list read below still benefits from it.
+		_, _ = Run(ctx, "device", "wifi", "rescan", "ifname", ifname)
+
+		if err := sleepCtx(ctx, scanSettleDelay); err != nil {
+			return best, err
+		}
+
+		aps, err := listAPs(ctx, ifname)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if len(aps) > len(best) {
+			best = aps
+		}
+		// Stop once the scan found a neighbour: a result with only the associated
+		// AP (or nothing) usually means the list has not repopulated yet.
+		if countScannable(aps) > 0 {
+			break
+		}
+	}
+	if best == nil && lastErr != nil {
+		return nil, lastErr
+	}
+	return best, nil
+}
+
+// listAPs reads NetworkManager's current scan list for ifname without forcing a
+// rescan.
+func listAPs(ctx context.Context, ifname string) ([]AP, error) {
 	out, err := Run(ctx, "-t", "-f", "IN-USE,SSID,BSSID,CHAN,FREQ,SIGNAL,SECURITY",
-		"device", "wifi", "list", "ifname", ifname, "--rescan", "yes")
+		"device", "wifi", "list", "ifname", ifname, "--rescan", "no")
 	if err != nil {
 		return nil, err
 	}
+	return parseAPList(out), nil
+}
+
+// parseAPList parses the terse `device wifi list` output into APs.
+func parseAPList(out string) []AP {
 	aps := []AP{}
 	sc := bufio.NewScanner(strings.NewReader(out))
 	for sc.Scan() {
@@ -254,32 +317,45 @@ func Scan(ctx context.Context, ifname string) ([]AP, error) {
 			Security: strings.TrimSpace(f[6]),
 		})
 	}
-	return aps, nil
+	return aps
+}
+
+// countScannable counts access points other than the one the interface is
+// currently associated with. Zero means the scan only sees the connected AP (or
+// nothing), i.e. it has not really populated yet.
+func countScannable(aps []AP) int {
+	n := 0
+	for _, ap := range aps {
+		if !ap.InUse {
+			n++
+		}
+	}
+	return n
+}
+
+// sleepCtx sleeps for d or until ctx is done, whichever comes first.
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
 }
 
 // CurrentAP returns the access point the interface is currently associated
 // with, using cached scan results (no forced rescan). ok is false if none.
 func CurrentAP(ctx context.Context, ifname string) (AP, bool) {
-	out, err := Run(ctx, "-t", "-f", "IN-USE,SSID,BSSID,CHAN,FREQ,SIGNAL,SECURITY",
-		"device", "wifi", "list", "ifname", ifname)
+	aps, err := listAPs(ctx, ifname)
 	if err != nil {
 		return AP{}, false
 	}
-	sc := bufio.NewScanner(strings.NewReader(out))
-	for sc.Scan() {
-		f := splitTerse(sc.Text())
-		if len(f) < 7 || f[0] != "*" {
-			continue
+	for _, ap := range aps {
+		if ap.InUse {
+			return ap, true
 		}
-		return AP{
-			InUse:    true,
-			SSID:     f[1],
-			BSSID:    f[2],
-			Chan:     atoi(f[3]),
-			FreqMHz:  uint32(atoi(strings.TrimSuffix(strings.TrimSpace(f[4]), " MHz"))),
-			Signal:   atoi(f[5]),
-			Security: strings.TrimSpace(f[6]),
-		}, true
 	}
 	return AP{}, false
 }

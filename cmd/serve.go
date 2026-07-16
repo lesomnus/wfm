@@ -22,10 +22,12 @@ import (
 	"github.com/lesomnus/wfm/internal/server"
 )
 
-// defaultScanCachePath is where the server persists cached scans, relative to
-// its working directory; defaultScanCacheTTL is how long a cached scan is served
-// before a new request scans the radio again. It is short: a scan request should
-// normally scan, and the cache only collapses bursts within this window.
+// defaultScanCachePath is the base name where the server persists cached scans,
+// relative to its working directory; the current UID is appended to it (e.g.
+// ".wfm.1000") so root and non-root runs never fight over one file.
+// defaultScanCacheTTL is how long a cached scan is served before a new request
+// scans the radio again. It is short: a scan request should normally scan, and
+// the cache only collapses bursts within this window.
 const (
 	defaultScanCachePath = ".wfm"
 	defaultScanCacheTTL  = 5 * time.Second
@@ -39,7 +41,7 @@ func NewCmdServe() *xli.Command {
 		Flags: flg.Flags{
 			&flg.String{Name: "addr", Brief: "listen address (unix socket path or host:port; default: unix socket)"},
 			&flg.String{Name: "backend", Brief: "wifi backend: nmcli|nmdbus|iwd (default: autodetect)"},
-			&flg.String{Name: "scan-cache", Brief: "path to the scan cache file (default: .wfm)"},
+			&flg.String{Name: "scan-cache", Brief: "path to the scan cache file (default: .wfm.<uid>)"},
 			&flg.String{Name: "scan-cache-ttl", Brief: "how long a cached scan is served before rescanning, e.g. 5s; 0 disables (default: 5s)"},
 		},
 
@@ -107,7 +109,10 @@ func scanCacheOpts(ctx context.Context, cmd *xli.Command) ([]server.Option, erro
 
 	path, _ := flg.Get[string](cmd, "scan-cache")
 	if path == "" {
-		path = defaultScanCachePath
+		// Suffix the default file with the current UID so a root-owned cache
+		// left behind by a sudo run does not block a later non-sudo write (each
+		// user gets their own file).
+		path = fmt.Sprintf("%s.%d", defaultScanCachePath, os.Getuid())
 	}
 
 	c := server.NewScanCache(path, ttl)

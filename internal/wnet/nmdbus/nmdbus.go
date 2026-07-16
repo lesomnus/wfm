@@ -224,18 +224,22 @@ func (b *Backend) waitPower(ctx context.Context, dev dbus.ObjectPath, on bool) {
 
 // ---- scan -------------------------------------------------------------------
 
-func (b *Backend) waitScan(ctx context.Context, dev dbus.ObjectPath, before int64) {
+// waitScan blocks until the device's LastScan advances past before (a fresh scan
+// completed) and reports true, or returns false on timeout / cancellation (the
+// scan did not run, e.g. throttled or not authorized).
+func (b *Backend) waitScan(ctx context.Context, dev dbus.ObjectPath, before int64) bool {
 	deadline := time.Now().Add(8 * time.Second)
 	for time.Now().Before(deadline) {
 		if b.propI64(dev, iWireless, "LastScan") > before {
-			return
+			return true
 		}
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case <-time.After(300 * time.Millisecond):
 		}
 	}
+	return false
 }
 
 func (b *Backend) apToDomain(ap dbus.ObjectPath) wnet.AP {
@@ -252,25 +256,58 @@ func (b *Backend) apToDomain(ap dbus.ObjectPath) wnet.AP {
 	}
 }
 
+// scanAttempts bounds how many times Scan re-scans while it sees only the
+// associated AP. Some drivers (notably Realtek rtw88 USB adapters) return just
+// the connected BSS from a single scan while associated, and NetworkManager's
+// cached list can collapse to that lone entry; recovering the neighbourhood
+// takes a few scans, the same reason `nmcli device wifi rescan` has to be run by
+// hand a couple of times.
+const scanAttempts = 4
+
 func (b *Backend) Scan(ctx context.Context, iface string) ([]wnet.AP, error) {
 	dev, err := b.deviceByName(ctx, iface)
 	if err != nil {
 		return nil, err
 	}
-	before := b.propI64(dev, iWireless, "LastScan")
-	// RequestScan may be throttled (NotAllowed); ignore and read cached results.
-	_ = b.conn.Object(nmService, dev).CallWithContext(ctx, iWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err
-	b.waitScan(ctx, dev, before)
 
-	var aps []dbus.ObjectPath
-	if err := b.conn.Object(nmService, dev).CallWithContext(ctx, iWireless+".GetAllAccessPoints", 0).Store(&aps); err != nil {
-		return nil, fmt.Errorf("get access points: %w", err)
+	var best []wnet.AP
+	for attempt := 0; attempt < scanAttempts; attempt++ {
+		before := b.propI64(dev, iWireless, "LastScan")
+		// RequestScan may be throttled (NotAllowed) or need privileges; ignore the
+		// error and read whatever the scan accumulates.
+		_ = b.conn.Object(nmService, dev).CallWithContext(ctx, iWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err
+		advanced := b.waitScan(ctx, dev, before)
+
+		var aps []dbus.ObjectPath
+		if err := b.conn.Object(nmService, dev).CallWithContext(ctx, iWireless+".GetAllAccessPoints", 0).Store(&aps); err != nil {
+			return nil, fmt.Errorf("get access points: %w", err)
+		}
+		out := make([]wnet.AP, 0, len(aps))
+		for _, ap := range aps {
+			out = append(out, b.apToDomain(ap))
+		}
+		if len(out) > len(best) {
+			best = out
+		}
+
+		// Stop once a neighbour (an AP other than the associated one) appears.
+		active := b.propPath(dev, iWireless, "ActiveAccessPoint")
+		scannable := 0
+		for _, ap := range aps {
+			if ap != active {
+				scannable++
+			}
+		}
+		if scannable > 0 {
+			break
+		}
+		// If the scan did not actually run (throttled / not authorized), retrying
+		// will not help, so stop and return what we have.
+		if !advanced {
+			break
+		}
 	}
-	out := make([]wnet.AP, 0, len(aps))
-	for _, ap := range aps {
-		out = append(out, b.apToDomain(ap))
-	}
-	return out, nil
+	return best, nil
 }
 
 // ---- profiles ---------------------------------------------------------------
