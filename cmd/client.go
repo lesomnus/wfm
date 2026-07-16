@@ -128,7 +128,7 @@ func dialInProc(ctx context.Context, cmd *xli.Command) (*clientConn, error) {
 		name = detectBackend()
 	}
 
-	b, err := newBackend(name)
+	b, err := newBackend(ctx, name)
 	if err != nil {
 		return nil, err
 	}

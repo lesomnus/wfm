@@ -43,6 +43,34 @@ Global options:
 - `wfm config` — print the current config as YAML.
 - `wfm version` — print version information.
 
+## Configuration
+
+### Excluding interfaces
+
+The server can hide interfaces from wfm entirely. An excluded interface never
+appears in `interface list`, and every operation targeting it — get, set-power,
+scan, connect, and any connection bound to it — behaves as if the interface did
+not exist. The exclusion is enforced in the backend the server serves, so it
+applies to every client and to the in-process server a bare CLI invocation
+starts; there is no way to reach an excluded interface through wfm.
+
+An interface can be excluded by name, MAC address, or the PCI address of its
+backing device:
+
+```yaml
+interface:
+  exclude:
+    - name: eth0                 # exact interface name
+    - mac: "AA:BB:CC:DD:EE:FF"   # case- and separator-insensitive
+    - pci: "0000:02:00.0"        # "02:00.0" (no domain) matches too
+```
+
+Each list entry is one rule. A rule may combine fields — e.g. `{name: wlan0,
+mac: ...}` matches only an interface satisfying **all** of them — and an
+interface is excluded if **any** rule matches it. MAC and PCI are resolved from
+sysfs (`/sys/class/net/<iface>`), so exclusion is stable across interface
+renames.
+
 ## Backends
 
 | Backend | Target | Notes |

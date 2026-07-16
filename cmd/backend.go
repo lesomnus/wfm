@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/godbus/dbus/v5"
@@ -11,8 +12,23 @@ import (
 	"github.com/lesomnus/wfm/internal/wnet/nmdbus"
 )
 
-// newBackend constructs the named wifi backend.
-func newBackend(name string) (wnet.Backend, error) {
+// newBackend constructs the named wifi backend and applies the interface
+// exclusions from the active config (when one is in ctx), so every path that
+// serves the backend — the standalone server and the in-process one a bare CLI
+// invocation spins up — hides excluded interfaces the same way.
+func newBackend(ctx context.Context, name string) (wnet.Backend, error) {
+	b, err := newRawBackend(name)
+	if err != nil {
+		return nil, err
+	}
+	if c, ok := use_config.From(ctx); ok {
+		b = wnet.WithExcluded(b, c.Interface.Exclude)
+	}
+	return b, nil
+}
+
+// newRawBackend constructs the named wifi backend without any wrapping.
+func newRawBackend(name string) (wnet.Backend, error) {
 	switch name {
 	case "nmcli":
 		return nmcli.New(), nil

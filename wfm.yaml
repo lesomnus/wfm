@@ -1,2 +1,13 @@
 # wfm configuration.
 # See the `otel` section for OpenTelemetry export settings.
+
+# Interfaces the server hides from wfm entirely. An excluded interface never
+# appears in listings and every operation targeting it (or a connection bound to
+# it) behaves as if it does not exist. Match by name, MAC, or PCI address; a
+# rule may combine fields (all must match), and any matching rule excludes.
+#
+# interface:
+#   exclude:
+#     - name: eth0
+#     - mac: "AA:BB:CC:DD:EE:FF"
+#     - pci: "0000:02:00.0"

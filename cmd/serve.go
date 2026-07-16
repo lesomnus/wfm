@@ -53,7 +53,7 @@ func NewCmdServe() *xli.Command {
 				backendName = detectBackend()
 			}
 
-			b, err := newBackend(backendName)
+			b, err := newBackend(ctx, backendName)
 			if err != nil {
 				return err
 			}
