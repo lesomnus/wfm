@@ -13,10 +13,12 @@ set -euo pipefail
 VER="${OPENWRT_VERSION:-23.05.5}"
 OUT="${1:-test/openwrt/openwrt.img}"
 
-# wpad (full) provides hostapd + wpa_supplicant for both AP and station PSK;
-# the rest give the ubus surface (rpcd/uhttpd-mod-ubus), scan/info (iwinfo),
-# the virtual radios (mac80211-hwsim) and DHCP (dnsmasq).
-PKGS="${OPENWRT_PACKAGES:-kmod-mac80211-hwsim wpad-mbedtls iwinfo rpcd uhttpd uhttpd-mod-ubus dnsmasq}"
+# wpad (full) provides hostapd + wpa_supplicant for both AP and station PSK.
+# The ubus objects wfm calls come from: rpcd-mod-iwinfo (the `iwinfo` object),
+# rpcd core (`uci`, `session`), netifd (`network.wireless`/`network.interface`,
+# in base), and uhttpd-mod-ubus (the HTTP `/ubus` endpoint). kmod-mac80211-hwsim
+# gives the virtual radios; dnsmasq the DHCP/DNS.
+PKGS="${OPENWRT_PACKAGES:-kmod-mac80211-hwsim wpad-mbedtls iwinfo rpcd rpcd-mod-iwinfo uhttpd uhttpd-mod-ubus dnsmasq}"
 
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
