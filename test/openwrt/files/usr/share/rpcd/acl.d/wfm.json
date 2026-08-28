@@ -1,0 +1,13 @@
+{
+	"wfm": {
+		"description": "Full ubus/uci access for the wfm test node (root login grants '*', which includes this group). This is intentionally permissive for a throwaway VM; see test/openwrt/acl/wfm.json for a scoped production example.",
+		"read": {
+			"ubus": { "*": ["*"] },
+			"uci": ["*"]
+		},
+		"write": {
+			"ubus": { "*": ["*"] },
+			"uci": ["*"]
+		}
+	}
+}
