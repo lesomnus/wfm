@@ -23,17 +23,23 @@ log="$here/.vm.serial.log"
 
 wait_ubus() {
 	echo "==> waiting for ubus at http://127.0.0.1:$UBUS_PORT/ubus"
-	local req
+	local req out
 	req='{"jsonrpc":"2.0","id":1,"method":"call","params":["00000000000000000000000000000000","session","login",{"username":"root","password":"'"$PW"'"}]}'
 	for _ in $(seq 1 150); do
-		if curl -fsS -m 2 "http://127.0.0.1:$UBUS_PORT/ubus" -d "$req" 2>/dev/null | grep -q ubus_rpc_session; then
+		out="$(curl -sS -m 2 "http://127.0.0.1:$UBUS_PORT/ubus" -d "$req" 2>&1)" || true
+		if printf '%s' "$out" | grep -q ubus_rpc_session; then
 			echo "==> ubus is up"
 			return 0
 		fi
 		sleep 2
 	done
-	echo "==> timed out; last serial output:" >&2
-	tail -n 60 "$log" 2>/dev/null || true
+	{
+		echo "==> timed out waiting for ubus"
+		echo "--- last curl response (empty/refused = network/firewall; a JSON error = login/ACL) ---"
+		printf '%s\n' "$out"
+		echo "--- full serial log ---"
+		cat "$log" 2>/dev/null || true
+	} >&2
 	return 1
 }
 
