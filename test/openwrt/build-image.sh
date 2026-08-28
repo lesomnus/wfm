@@ -41,5 +41,16 @@ make -C "$ib" image \
 # boot, leaving room for runtime state.
 img_gz="$(ls "$ib"/bin/targets/x86/64/*squashfs-combined.img.gz | head -1)"
 mkdir -p "$(dirname "$root/$OUT")"
+
+# OpenWrt pads its .img.gz after the gzip stream, so gzip decompresses fine but
+# exits 2 ("trailing garbage ignored"). That warning is not an error; only a
+# non-zero code other than 2 is a real failure.
+set +e
 gunzip -c "$img_gz" > "$root/$OUT"
+rc=$?
+set -e
+if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then
+	echo "gunzip failed ($rc)" >&2
+	exit "$rc"
+fi
 echo "==> wrote $OUT"
