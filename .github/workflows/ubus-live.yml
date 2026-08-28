@@ -1,0 +1,69 @@
+name: ubus-live
+
+# Full-fidelity test of the OpenWrt ubus backend against a real OpenWrt node
+# booted in QEMU (mac80211_hwsim virtual radios). Opt-in: run it by hand, or it
+# runs when the backend or harness changes. It is not part of the normal test
+# job because booting a VM is slow.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'internal/wnet/ubus/**'
+      - 'test/openwrt/**'
+      - '.github/workflows/ubus-live.yml'
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 qemu-utils
+
+      - name: Enable KVM (best effort; falls back to TCG)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
+
+      - name: Cache OpenWrt image
+        id: img
+        uses: actions/cache@v4
+        with:
+          path: test/openwrt/openwrt.img
+          key: openwrt-${{ hashFiles('test/openwrt/files/**', 'test/openwrt/build-image.sh') }}
+
+      - name: Build image
+        if: steps.img.outputs.cache-hit != 'true'
+        run: bash test/openwrt/build-image.sh
+
+      - name: Boot VM
+        run: bash test/openwrt/run-vm.sh start
+
+      - name: Run live test
+        env:
+          WFM_TEST_UBUS: http://127.0.0.1:8080/ubus
+          WFM_TEST_UBUS_USER: root
+          WFM_TEST_UBUS_PASS: wfmtest
+          WFM_TEST_UBUS_SSID: WFMTEST
+          WFM_TEST_UBUS_PSK: wfmtest123
+          WFM_TEST_UBUS_RADIO: radio1
+          WFM_TEST_UBUS_CONNECT: '1'
+        run: go test -run TestUbusLive -v -count=1 ./internal/wnet/ubus/
+
+      - name: VM serial log
+        if: always()
+        run: cat test/openwrt/.vm.serial.log || true
+
+      - name: Stop VM
+        if: always()
+        run: bash test/openwrt/run-vm.sh stop

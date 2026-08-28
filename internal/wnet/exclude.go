@@ -3,15 +3,8 @@ package wnet
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 )
-
-// sysClassNet is the sysfs root where per-interface attributes (hardware
-// address, backing device) are read from. It is a variable so tests can point
-// resolution at a fixture tree.
-var sysClassNet = "/sys/class/net"
 
 // ExcludeRule matches a network interface that must be hidden from the service.
 // A rule may pin any combination of Name, Mac and Pci; an interface is matched
@@ -24,6 +17,10 @@ var sysClassNet = "/sys/class/net"
 //     so "AA:BB:CC:DD:EE:FF", "aa-bb-cc-dd-ee-ff" and "aabbccddeeff" are equal.
 //   - Pci is the PCI address of the backing device (e.g. "0000:02:00.0"); a
 //     value given without the domain prefix ("02:00.0") matches as well.
+//
+// Matching runs entirely on the neutral Interface a backend reports (Name, Mac,
+// Pci), never on host state read directly, so exclusion behaves identically for
+// a local backend (nmcli/nmdbus/iwd) and a remote one (e.g. ubus over HTTP).
 type ExcludeRule struct {
 	Name string `yaml:"name,omitempty"`
 	Mac  string `yaml:"mac,omitempty"`
@@ -48,10 +45,9 @@ func (r ExcludeRule) Validate() error {
 }
 
 // matches reports whether the rule matches an interface with the given
-// attributes. macs holds every known form of the interface's hardware address
-// (normalized), since a single interface can present more than one (e.g. the
-// backend-reported address and the current sysfs address).
-func (r ExcludeRule) matches(name string, macs map[string]bool, pci string) bool {
+// attributes. mac must already be normalized (see normalizeMac); an empty mac
+// or pci simply fails a rule that pins that field.
+func (r ExcludeRule) matches(name, mac, pci string) bool {
 	matched := false
 	if r.Name != "" {
 		if r.Name != name {
@@ -60,7 +56,7 @@ func (r ExcludeRule) matches(name string, macs map[string]bool, pci string) bool
 		matched = true
 	}
 	if r.Mac != "" {
-		if !macs[normalizeMac(r.Mac)] {
+		if normalizeMac(r.Mac) != mac {
 			return false
 		}
 		matched = true
@@ -74,21 +70,18 @@ func (r ExcludeRule) matches(name string, macs map[string]bool, pci string) bool
 	return matched
 }
 
-// excludeSet is a compiled, ready-to-query form of a rule list. It records
-// whether any rule needs the MAC or PCI attribute so name-only rule sets never
-// touch sysfs.
+// excludeSet is a compiled, ready-to-query form of a rule list. needMac/needPci
+// record whether any rule pins that attribute, so a name-only rule set never
+// forces an interface lookup.
 type excludeSet struct {
 	rules   []ExcludeRule
 	needMac bool
 	needPci bool
-	// resolve returns the sysfs-derived MAC and PCI address of an interface. It
-	// is a field so tests can inject a fake without a real sysfs tree.
-	resolve func(name string) (mac, pci string)
 }
 
 // newExcludeSet compiles rules, dropping empty ones.
 func newExcludeSet(rules []ExcludeRule) *excludeSet {
-	s := &excludeSet{resolve: resolveSysfs}
+	s := &excludeSet{}
 	for _, r := range rules {
 		if r.isEmpty() {
 			continue
@@ -104,49 +97,15 @@ func newExcludeSet(rules []ExcludeRule) *excludeSet {
 	return s
 }
 
-// excluded reports whether the named interface is excluded. knownMac, when
-// non-empty, is a hardware address the caller already holds (e.g. from a
-// backend listing); it is considered in addition to the sysfs address.
-func (s *excludeSet) excluded(name, knownMac string) bool {
-	if len(s.rules) == 0 || name == "" {
-		return false
-	}
-
-	macs := map[string]bool{}
-	if m := normalizeMac(knownMac); m != "" {
-		macs[m] = true
-	}
-	var pci string
-	if s.needMac || s.needPci {
-		mac, p := s.resolve(name)
-		if m := normalizeMac(mac); m != "" {
-			macs[m] = true
-		}
-		pci = p
-	}
-
+// match reports whether any rule matches the given interface attributes.
+func (s *excludeSet) match(name, mac, pci string) bool {
+	macN := normalizeMac(mac)
 	for _, r := range s.rules {
-		if r.matches(name, macs, pci) {
+		if r.matches(name, macN, pci) {
 			return true
 		}
 	}
 	return false
-}
-
-// resolveSysfs reads an interface's hardware address and PCI address from
-// sysfs. Missing files yield empty strings rather than an error: an interface
-// without the queried attribute simply cannot match a rule that pins it.
-func resolveSysfs(name string) (mac, pci string) {
-	if b, err := os.ReadFile(filepath.Join(sysClassNet, name, "address")); err == nil {
-		mac = strings.TrimSpace(string(b))
-	}
-	// /sys/class/net/<name>/device is a symlink into the device tree; its base
-	// name is the bus address, which for PCI devices is the domain:bus:dev.func
-	// form (e.g. "0000:02:00.0").
-	if target, err := os.Readlink(filepath.Join(sysClassNet, name, "device")); err == nil {
-		pci = strings.ToLower(filepath.Base(target))
-	}
-	return mac, pci
 }
 
 // normalizeMac reduces a MAC to its 12 lowercase hex digits, discarding any
@@ -200,6 +159,35 @@ func WithExcluded(b Backend, rules []ExcludeRule) Backend {
 	return &filteredBackend{Backend: b, ex: s}
 }
 
+// excludedIface reports whether a fully-resolved interface is excluded, matching
+// on the neutral data the backend already supplied.
+func (f *filteredBackend) excludedIface(it Interface) bool {
+	return f.ex.match(it.Name, it.Mac, it.Pci)
+}
+
+// excludedName reports whether the named interface is excluded when only its
+// name is known (scan/activate/connection targets). A name-only rule set decides
+// without touching the backend; when a rule pins mac or pci, the backend is
+// asked for the interface's neutral domain data and the match runs on that. If
+// the interface cannot be resolved, only name rules apply — the underlying
+// operation will report its absence.
+func (f *filteredBackend) excludedName(ctx context.Context, name string) bool {
+	if name == "" || len(f.ex.rules) == 0 {
+		return false
+	}
+	if f.ex.match(name, "", "") {
+		return true // a name-only rule matches without resolving mac/pci
+	}
+	if !f.ex.needMac && !f.ex.needPci {
+		return false
+	}
+	it, err := f.Backend.Interface(ctx, name)
+	if err != nil {
+		return false
+	}
+	return f.excludedIface(it)
+}
+
 func (f *filteredBackend) Interfaces(ctx context.Context) ([]Interface, error) {
 	its, err := f.Backend.Interfaces(ctx)
 	if err != nil {
@@ -207,7 +195,7 @@ func (f *filteredBackend) Interfaces(ctx context.Context) ([]Interface, error) {
 	}
 	out := make([]Interface, 0, len(its))
 	for _, it := range its {
-		if f.ex.excluded(it.Name, it.Mac) {
+		if f.excludedIface(it) {
 			continue
 		}
 		out = append(out, it)
@@ -216,28 +204,38 @@ func (f *filteredBackend) Interfaces(ctx context.Context) ([]Interface, error) {
 }
 
 func (f *filteredBackend) Interface(ctx context.Context, name string) (Interface, error) {
-	if f.ex.excluded(name, "") {
+	// A name-only rule rejects without a lookup; otherwise resolve the interface
+	// (which we must return anyway) and match on its neutral attributes so mac
+	// and pci rules work regardless of backend.
+	if f.ex.match(name, "", "") {
 		return Interface{}, ErrNotFound
 	}
-	return f.Backend.Interface(ctx, name)
+	it, err := f.Backend.Interface(ctx, name)
+	if err != nil {
+		return Interface{}, err
+	}
+	if f.excludedIface(it) {
+		return Interface{}, ErrNotFound
+	}
+	return it, nil
 }
 
 func (f *filteredBackend) SetPower(ctx context.Context, name string, on bool) (Interface, error) {
-	if f.ex.excluded(name, "") {
+	if f.excludedName(ctx, name) {
 		return Interface{}, ErrNotFound
 	}
 	return f.Backend.SetPower(ctx, name, on)
 }
 
 func (f *filteredBackend) Scan(ctx context.Context, iface string) ([]AP, error) {
-	if f.ex.excluded(iface, "") {
+	if f.excludedName(ctx, iface) {
 		return nil, ErrNotFound
 	}
 	return f.Backend.Scan(ctx, iface)
 }
 
 func (f *filteredBackend) Activate(ctx context.Context, iface, profileID, bssid string) (Active, error) {
-	if f.ex.excluded(iface, "") {
+	if f.excludedName(ctx, iface) {
 		return Active{}, ErrNotFound
 	}
 	return f.Backend.Activate(ctx, iface, profileID, bssid)
@@ -250,7 +248,7 @@ func (f *filteredBackend) Connections(ctx context.Context) ([]Active, error) {
 	}
 	out := make([]Active, 0, len(as))
 	for _, a := range as {
-		if f.ex.excluded(a.Iface, "") {
+		if f.excludedName(ctx, a.Iface) {
 			continue
 		}
 		out = append(out, a)
@@ -263,7 +261,7 @@ func (f *filteredBackend) Connection(ctx context.Context, connID string) (Active
 	if err != nil {
 		return Active{}, err
 	}
-	if f.ex.excluded(a.Iface, "") {
+	if f.excludedName(ctx, a.Iface) {
 		return Active{}, ErrNotFound
 	}
 	return a, nil
@@ -277,7 +275,7 @@ func (f *filteredBackend) visibleConnection(ctx context.Context, connID string) 
 	if err != nil {
 		return err
 	}
-	if f.ex.excluded(a.Iface, "") {
+	if f.excludedName(ctx, a.Iface) {
 		return ErrNotFound
 	}
 	return nil

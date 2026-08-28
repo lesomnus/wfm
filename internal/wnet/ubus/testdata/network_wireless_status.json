@@ -1,0 +1,28 @@
+{
+	"radio0": {
+		"up": true,
+		"pending": false,
+		"autostart": true,
+		"disabled": false,
+		"interfaces": [
+			{
+				"section": "default_radio0",
+				"ifname": "phy0-ap0",
+				"config": { "mode": "ap", "ssid": "WFMTEST" }
+			}
+		]
+	},
+	"radio1": {
+		"up": true,
+		"pending": false,
+		"autostart": true,
+		"disabled": false,
+		"interfaces": [
+			{
+				"section": "wfm_ab12cd34ef56",
+				"ifname": "phy1-sta0",
+				"config": { "mode": "sta", "ssid": "HomeNet" }
+			}
+		]
+	}
+}

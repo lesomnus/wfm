@@ -1,0 +1,24 @@
+{
+	"//": "Example rpcd ACL for a SCOPED wfm login on a real OpenWrt node. The test harness itself logs in as root (whose default rpcd login already grants everything), so this file is documentation for production: install it at /usr/share/rpcd/acl.d/wfm.json and reference the group from a dedicated `config login` in /etc/config/rpcd (list read wfm / list write wfm).",
+	"wfm": {
+		"description": "Minimal access for the wfm wifi manager",
+		"read": {
+			"ubus": {
+				"iwinfo": ["devices", "info", "scan", "assoclist", "freqlist"],
+				"uci": ["get"],
+				"network.wireless": ["status"],
+				"network.interface.wwan": ["status"],
+				"network.interface.lan": ["status"],
+				"session": ["access"]
+			},
+			"uci": ["wireless", "network"]
+		},
+		"write": {
+			"ubus": {
+				"uci": ["add", "set", "delete", "commit"],
+				"network.wireless": ["up", "down", "reconf"]
+			},
+			"uci": ["wireless", "network"]
+		}
+	}
+}

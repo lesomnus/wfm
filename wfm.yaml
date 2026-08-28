@@ -11,3 +11,15 @@
 #     - name: eth0
 #     - mac: "AA:BB:CC:DD:EE:FF"
 #     - pci: "0000:02:00.0"
+
+# OpenWrt ubus backend (only used with `--backend ubus`). Controls wifi on a
+# remote node over ubus JSON-RPC (rpcd + uhttpd-mod-ubus). The password is read
+# from password_file so it is not printed by `wfm config`.
+#
+# ubus:
+#   endpoint: http://192.168.1.1/ubus
+#   username: root
+#   password_file: /run/secrets/wfm-ubus
+#   insecure: false   # true skips TLS verification (self-signed cert)
+#   radio: radio0     # wifi-device new station profiles attach to ("" = first)
+#   network: wwan     # network interface a station binds to for DHCP

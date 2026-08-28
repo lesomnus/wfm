@@ -67,9 +67,43 @@ interface:
 
 Each list entry is one rule. A rule may combine fields — e.g. `{name: wlan0,
 mac: ...}` matches only an interface satisfying **all** of them — and an
-interface is excluded if **any** rule matches it. MAC and PCI are resolved from
-sysfs (`/sys/class/net/<iface>`), so exclusion is stable across interface
-renames.
+interface is excluded if **any** rule matches it. Matching runs on the neutral
+attributes the backend reports (name, MAC, PCI), so exclusion is stable across
+interface renames and works the same for a local or a remote backend. A backend
+that cannot determine an attribute (e.g. `ubus` has no PCI address) simply never
+matches a rule pinning it, so use name/MAC there.
+
+### OpenWrt (ubus) backend
+
+The `ubus` backend controls wifi on a **remote OpenWrt node** over ubus exposed
+as JSON-RPC by `rpcd` + `uhttpd` (the `uhttpd-mod-ubus` package), reached at an
+HTTP(S) endpoint like `http://<node>/ubus`. Unlike the local backends it talks
+to a different host, so the wfm server can run anywhere. Select it explicitly —
+it is never autodetected — and configure it:
+
+```yaml
+ubus:
+  endpoint: http://192.168.1.1/ubus
+  username: root
+  password_file: /run/secrets/wfm-ubus   # preferred over inline `password`
+  # insecure: true      # skip TLS verification for a self-signed uhttpd cert
+  # radio: radio0        # wifi-device new station profiles attach to
+  # network: wwan        # network interface a station binds to for DHCP
+```
+
+```bash
+wfm serve --backend ubus                 # server talking to the node in the config
+# or self-serving, in one shot:
+wfm --backend ubus interface list
+```
+
+The node needs `rpcd`/`uhttpd-mod-ubus` installed and an rpcd login whose ACL
+grants the `iwinfo`, `uci` (wireless) and `network.wireless`/`network.interface`
+objects. The secret is read from `password_file` so it never appears in
+`wfm config` output. OpenWrt is AP-centric; wfm's scan/connect model applies to
+a `wifi-iface` in **station** mode, and capabilities OpenWrt cannot express
+here — enterprise security, per-profile static IP, per-interface radio power —
+are reported as `Unimplemented`.
 
 ## Backends
 
@@ -78,6 +112,7 @@ renames.
 | `nmdbus` | NetworkManager nodes | NM D-Bus directly (no fork), signal-based Watch |
 | `iwd` | Ubuntu Server / edge | iwd D-Bus directly (no fork), profiles = files under `/var/lib/iwd` |
 | `nmcli` | NM nodes (fallback) | nmcli subprocess, no D-Bus code required |
+| `ubus` | OpenWrt (remote) | ubus over HTTP JSON-RPC; profiles = `wifi-iface` (sta) in UCI; poll-based Watch |
 
 For backend architecture, a capability/limitation comparison, and the **full
 iwd configuration (main.conf and profile files)**, see

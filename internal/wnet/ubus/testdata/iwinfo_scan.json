@@ -1,0 +1,35 @@
+{
+	"results": [
+		{
+			"ssid": "HomeNet",
+			"bssid": "11:22:33:44:55:66",
+			"mode": "Master",
+			"band": 5,
+			"channel": 36,
+			"mhz": 5180,
+			"signal": -55,
+			"quality": 45,
+			"quality_max": 70,
+			"encryption": {
+				"enabled": true,
+				"wpa": [2],
+				"authentication": ["psk"],
+				"ciphers": ["ccmp"]
+			}
+		},
+		{
+			"ssid": "Cafe",
+			"bssid": "aa:bb:cc:00:11:22",
+			"mode": "Master",
+			"band": 2,
+			"channel": 1,
+			"mhz": 2412,
+			"signal": -70,
+			"quality": 25,
+			"quality_max": 70,
+			"encryption": {
+				"enabled": false
+			}
+		}
+	]
+}

@@ -6,11 +6,12 @@ import (
 	"testing"
 )
 
-// fakeBackend is a minimal Backend for exercising filteredBackend. Only the
-// interface-scoped methods are meaningful here; the rest return zero values.
+// fakeBackend implements the interface-scoped Backend methods over an in-memory
+// map. Because exclusion resolves mac/pci by asking the backend, each Interface
+// carries the neutral attributes a real backend would report.
 type fakeBackend struct {
 	Backend
-	ifaces map[string]Interface
+	ifaces  map[string]Interface
 	actives map[string]Active // connID -> active
 }
 
@@ -62,15 +63,6 @@ func (f *fakeBackend) Deactivate(_ context.Context, connID string) error {
 	return nil
 }
 
-// withResolve swaps a filteredBackend's sysfs resolver for a fixture map so
-// tests need no real /sys tree.
-func withResolve(b Backend, macs, pcis map[string]string) {
-	fb := b.(*filteredBackend)
-	fb.ex.resolve = func(name string) (string, string) {
-		return macs[name], pcis[name]
-	}
-}
-
 func TestExcludeByName(t *testing.T) {
 	fb := &fakeBackend{ifaces: map[string]Interface{
 		"wlan0": {Name: "wlan0"},
@@ -100,20 +92,19 @@ func TestExcludeByName(t *testing.T) {
 	}
 }
 
+// TestExcludeByMacAndPci checks that mac/pci rules match on the neutral
+// attributes the backend reports — including on the name-only paths, which
+// resolve the interface through the backend rather than reading the host.
 func TestExcludeByMacAndPci(t *testing.T) {
 	fb := &fakeBackend{ifaces: map[string]Interface{
 		"wlan0": {Name: "wlan0", Mac: "AA:BB:CC:DD:EE:FF"},
-		"wlan1": {Name: "wlan1"}, // mac only known via sysfs
-		"wlan2": {Name: "wlan2"},
+		"wlan1": {Name: "wlan1", Mac: "11:22:33:44:55:66"},
+		"wlan2": {Name: "wlan2", Pci: "0000:02:00.0"},
 	}}
 	b := WithExcluded(fb, []ExcludeRule{
-		{Mac: "aabbccddeeff"},   // matches wlan0 via backend-reported mac
-		{Pci: "02:00.0"},        // matches wlan2 via sysfs pci (domain-less)
+		{Mac: "aabbccddeeff"}, // matches wlan0 (separator-insensitive)
+		{Pci: "02:00.0"},      // matches wlan2 (domain-less)
 	})
-	withResolve(b,
-		map[string]string{"wlan1": "11:22:33:44:55:66"},
-		map[string]string{"wlan2": "0000:02:00.0"},
-	)
 
 	its, err := b.Interfaces(context.Background())
 	if err != nil {
@@ -125,6 +116,18 @@ func TestExcludeByMacAndPci(t *testing.T) {
 	}
 	if !got["wlan1"] || got["wlan0"] || got["wlan2"] {
 		t.Fatalf("expected only wlan1 visible, got %+v", got)
+	}
+
+	// Name-only paths must reach the same verdict by resolving through the
+	// backend, not by reading local sysfs.
+	if _, err := b.Scan(context.Background(), "wlan0"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("mac-excluded Scan: want ErrNotFound, got %v", err)
+	}
+	if _, err := b.Interface(context.Background(), "wlan2"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("pci-excluded Interface: want ErrNotFound, got %v", err)
+	}
+	if _, err := b.Scan(context.Background(), "wlan1"); err != nil {
+		t.Fatalf("visible Scan: %v", err)
 	}
 }
 

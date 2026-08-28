@@ -101,9 +101,11 @@ func (b *Backend) managed(ctx context.Context) (objects, error) {
 
 func deviceToIface(dev map[string]dbus.Variant) wnet.Interface {
 	powered := variantBool(dev["Powered"])
+	name := variantString(dev["Name"])
 	return wnet.Interface{
-		Name:    variantString(dev["Name"]),
+		Name:    name,
 		Mac:     strings.ToLower(variantString(dev["Address"])),
+		Pci:     wnet.LocalPCI(name),
 		Powered: powered,
 		Up:      powered, // iwd Device.Powered == interface UP
 	}

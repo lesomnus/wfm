@@ -3,3 +3,7 @@
 
 # Scan-result cache written by the client in the working directory.
 .wfm
+
+# OpenWrt ubus live-test harness artifacts (built image + running VM state).
+/test/openwrt/openwrt.img
+/test/openwrt/.vm.*

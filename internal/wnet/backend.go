@@ -72,11 +72,18 @@ type IPConfig struct {
 }
 
 // Interface is a wireless device as seen by the backend.
+//
+// Mac and Pci are identifying attributes a backend fills from whatever source
+// it has (D-Bus, nmcli, sysfs, a remote API); a backend that cannot determine
+// one leaves it empty. They are neutral domain data — no consumer reads the
+// host directly to obtain them, so interface filtering and any other logic
+// works the same for a local or a remote backend.
 type Interface struct {
 	Name    string // also the stable id
 	Mac     string
-	Powered bool // managed and at least available (radio on)
-	Up      bool // link IFF_UP
+	Pci     string // PCI address of the backing device, e.g. "0000:02:00.0"; "" if unknown/non-PCI
+	Powered bool   // managed and at least available (radio on)
+	Up      bool   // link IFF_UP
 	Desc    string
 }
 

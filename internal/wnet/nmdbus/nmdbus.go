@@ -154,6 +154,7 @@ func (b *Backend) deviceToIface(path dbus.ObjectPath) wnet.Interface {
 	return wnet.Interface{
 		Name:    name,
 		Mac:     strings.ToLower(b.propStr(path, iDevice, "HwAddress")),
+		Pci:     wnet.LocalPCI(name),
 		Powered: int(state) >= nmStateDisconnected,
 		Up:      ifaceUp(name),
 		Desc:    stateText(state),

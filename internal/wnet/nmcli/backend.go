@@ -30,6 +30,7 @@ func toIface(d Device) wnet.Interface {
 	return wnet.Interface{
 		Name:    d.Name,
 		Mac:     strings.ToLower(d.Mac),
+		Pci:     wnet.LocalPCI(d.Name),
 		Powered: d.StateCode >= StateDisconnected,
 		Up:      d.Up,
 		Desc:    d.StateText,

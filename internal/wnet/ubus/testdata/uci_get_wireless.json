@@ -1,0 +1,36 @@
+{
+	"values": {
+		"radio0": {
+			".anonymous": false,
+			".type": "wifi-device",
+			".name": "radio0",
+			"type": "mac80211",
+			"path": "platform/mac80211_hwsim/hwsim0",
+			"channel": "36",
+			"band": "5g"
+		},
+		"default_radio0": {
+			".anonymous": false,
+			".type": "wifi-iface",
+			".name": "default_radio0",
+			"device": "radio0",
+			"network": "lan",
+			"mode": "ap",
+			"ssid": "WFMTEST",
+			"encryption": "psk2",
+			"key": "wfmtest123"
+		},
+		"wfm_ab12cd34ef56": {
+			".anonymous": false,
+			".type": "wifi-iface",
+			".name": "wfm_ab12cd34ef56",
+			"device": "radio1",
+			"network": "wwan",
+			"mode": "sta",
+			"ssid": "HomeNet",
+			"encryption": "psk2",
+			"key": "secret",
+			"disabled": "0"
+		}
+	}
+}
