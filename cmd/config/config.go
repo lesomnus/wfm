@@ -41,6 +41,9 @@ type UbusConfig struct {
 	// ("" defaults to "wwan").
 	Radio   string `yaml:"radio,omitempty"`
 	Network string `yaml:"network,omitempty"`
+	// ScanObject optionally delegates scan to a router-owned ubus implementation
+	// with the iwinfo request/result format. Empty keeps normal iwinfo scanning.
+	ScanObject string `yaml:"scan_object,omitempty"`
 }
 
 // ResolvePassword returns the password, reading PasswordFile when set (it wins

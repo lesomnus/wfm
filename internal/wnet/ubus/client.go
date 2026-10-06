@@ -76,6 +76,9 @@ type Options struct {
 	// interface a station is bound to for DHCP (default "wwan").
 	Radio   string
 	Network string
+	// ScanObject overrides the ubus object providing scan({device}) -> {results}.
+	// Empty uses iwinfo. An override may temporarily interrupt the uplink.
+	ScanObject string
 }
 
 // NewClient builds a Client from options.
@@ -89,7 +92,12 @@ func NewClient(o Options) (*Client, error) {
 		if o.Insecure {
 			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 		}
-		hc = &http.Client{Transport: tr, Timeout: 30 * time.Second}
+		timeout := 30 * time.Second
+		if o.ScanObject != "" {
+			// A router-owned scan includes radio teardown and restoration.
+			timeout = 60 * time.Second
+		}
+		hc = &http.Client{Transport: tr, Timeout: timeout}
 	}
 	return &Client{
 		endpoint: o.Endpoint,

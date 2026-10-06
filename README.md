@@ -122,6 +122,15 @@ requirement.
 
 ## Backends
 
+On routers that need a controlled radio restart to scan, `ubus.scan_object`
+can select a router-owned ubus object instead of `iwinfo`. The object must expose
+`scan` with a `device` string and return the same `results` array as
+`iwinfo.scan`; an `error` string is reported as a scan failure. The default is
+unchanged. Grant access to the selected method in the router's rpcd ACL.
+The router implementation owns locking and restoration even when the caller
+disconnects. Clients using the uplink being scanned must handle a lost reply;
+this option does not make a disruptive scan transparent to remote clients.
+
 | Backend | Target | Notes |
 |---|---|---|
 | `nmdbus` | NetworkManager nodes | NM D-Bus directly (no fork), signal-based Watch |

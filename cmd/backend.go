@@ -59,12 +59,13 @@ func newUbusBackend(c *config.Config) (wnet.Backend, error) {
 		return nil, err
 	}
 	return ubus.New(ubus.Options{
-		Endpoint: c.Ubus.Endpoint,
-		Username: c.Ubus.Username,
-		Password: pass,
-		Insecure: c.Ubus.Insecure,
-		Radio:    c.Ubus.Radio,
-		Network:  c.Ubus.Network,
+		Endpoint:   c.Ubus.Endpoint,
+		Username:   c.Ubus.Username,
+		Password:   pass,
+		Insecure:   c.Ubus.Insecure,
+		Radio:      c.Ubus.Radio,
+		Network:    c.Ubus.Network,
+		ScanObject: c.Ubus.ScanObject,
 	})
 }
 
